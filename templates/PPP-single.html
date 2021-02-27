@@ -22,7 +22,7 @@
             <p class="lead">PPP</p>
         </div>
         <div class="row">
-            <p style="color:red;">{{error}}</p>
+            <p style="color:red;">{{error|safe}}</p>
         </div>
 {% if not session['PPPlogged_in'] %}
 <div class="row">
