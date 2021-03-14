@@ -1,10 +1,10 @@
 ﻿# PALP Workspace
 
-PALP Workspace is a Flask web application that was created to help researchers for the PALP project connect different sources of data to each other. It links  [Pompei: pitture e mosaici](https://www.worldcat.org/title/pompei-pitture-e-mosaici/oclc/28254535),  [Pitture e pavimenti di Pompei](https://www.worldcat.org/title/pitture-e-pavimenti-di-pompei/oclc/490575255),  [PompeiiinPictures](https://pompeiiinpictures.com/pompeiiinpictures/index.htm), and [an ArcGIS Map](https://arcg.is/ivHP0). The workspace is currently hosted at [https://workspace.p-lod.umasscreate.net/](https://workspace.p-lod.umasscreate.net/).
+PALP Workspace is a Flask web application that was created to help researchers for the PALP project connect different sources of data to each other and describe images. It links  [Pompei: pitture e mosaici](https://www.worldcat.org/title/pompei-pitture-e-mosaici/oclc/28254535),  [Pitture e pavimenti di Pompei](https://www.worldcat.org/title/pitture-e-pavimenti-di-pompei/oclc/490575255),  [PompeiiinPictures](https://pompeiiinpictures.com/pompeiiinpictures/index.htm), and [an ArcGIS Map](https://arcg.is/ivHP0). The workspace is currently hosted at [https://workspace.p-lod.umasscreate.net/](https://workspace.p-lod.umasscreate.net/).
 
 ## User Workflow
 
-Users start by entering an ARC number, which queries the various databases based on location data. Each successive tab walks them through steps like validating OCR data, copying relevant descriptions, and choosing relevant pictures. The Description and Saved Data tabs are where that all comes together for them to save this linked data and use it to populate a Google Sheet with more detailed information.
+Users start by entering location, and can then choose from the ARCs at that location. Each successive tab walks them through steps like validating OCR data, copying relevant descriptions, and verifying relevant pictures chosen in the [Prequel](https://prequel.p-lod.umasscreate.net/). The Description tab is where that all comes together to save this linked data and use it to populate a Google Sheet with more detailed information.
 
 ## Integrations
 
@@ -14,9 +14,9 @@ Users start by entering an ARC number, which queries the various databases based
 
 ## Installation
 
--   Clone or download [GitHub repository](https://github.com/alexroseb/PALP-Workspace)
--   `pip install -r requirements.txt`
--   Add relevant configuration files
+-  Clone or download [GitHub repository](https://github.com/p-lod/PALP-Workspace/)
+-  `pip install -r requirements.txt`
+-  Add relevant configuration files
 -  Add empty images/ directory within static/
 
 ### Configuration Files
@@ -31,5 +31,5 @@ Users start by entering an ARC number, which queries the various databases based
 
 ## File Structure
 - templates/ - HTML files that take in Flask output and display the site
-- app.py - main Flask Python file; [further documentation](https://htmlpreview.github.io/?https://github.com/alexroseb/PALP-Workspace/blob/master/static/docs.html)
+- app.py - main Flask Python file; [further documentation](https://workspace.p-lod.umasscreate.net/static/docs/app.html)
 - static/css/style.css - Basic styling
