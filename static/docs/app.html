@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html;charset=utf-8">
+  <title>PALP Workspace</title>
+  <link rel="stylesheet" href="pycco.css">
+</head>
+<body>
+<div id='container'>
+  <div id="background"></div>
+  <div class='section'>
+    <div class='docs'><h1>PALP Workspace</h1></div>
+    <div class='docs'><h2>app.py</h2></div>
+  </div>
+  <div class='clearall'>
+  <div class='section' id='section-0'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-0'>#</a>
+      </div>
+      <p>Flask web application created to help researchers for the PALP project connect different sources of data to each other.</p>
+<p><a href="https://github.com/p-lod/PALP-Workspace">Github repository</a></p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
+<span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span><span class="p">,</span> <span class="n">render_template</span><span class="p">,</span> <span class="n">session</span><span class="p">,</span> <span class="n">json</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">redirect</span><span class="p">,</span> <span class="n">flash</span>
+<span class="kn">from</span> <span class="nn">flask_mysqldb</span> <span class="kn">import</span> <span class="n">MySQL</span>
+<span class="kn">from</span> <span class="nn">google.cloud</span> <span class="kn">import</span> <span class="n">translate_v2</span> <span class="k">as</span> <span class="n">translate</span>
+<span class="kn">from</span> <span class="nn">google.oauth2</span> <span class="kn">import</span> <span class="n">service_account</span>
+<span class="kn">from</span> <span class="nn">googleapiclient.discovery</span> <span class="kn">import</span> <span class="n">build</span>
+<span class="kn">import</span> <span class="nn">boxsdk</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">sentry_sdk</span>
+<span class="kn">from</span> <span class="nn">sentry_sdk.integrations.flask</span> <span class="kn">import</span> <span class="n">FlaskIntegration</span>
+<span class="kn">from</span> <span class="nn">markupsafe</span> <span class="kn">import</span> <span class="n">escape</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-1'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-1'>#</a>
+      </div>
+      <h3><span id="setup-and-authentication" href="setup-and-authentication"> Setup and Authentication </span></h3>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-2'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-2'>#</a>
+      </div>
+      <p>Using <a href="https://sentry.io/">Sentry</a> to log and report errors</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="n">sentry_sdk</span><span class="o">.</span><span class="n">init</span><span class="p">(</span>
+    <span class="n">dsn</span><span class="o">=</span><span class="s2">&quot;https://5ebc9319ed40454993186c71e8c35553@o493026.ingest.sentry.io/5561383&quot;</span><span class="p">,</span>
+    <span class="n">integrations</span><span class="o">=</span><span class="p">[</span><span class="n">FlaskIntegration</span><span class="p">()],</span>
+    <span class="n">traces_sample_rate</span><span class="o">=</span><span class="mf">1.0</span>
+<span class="p">)</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;SECRET_KEY&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;ShuJAxtrE8tO5ZT&quot;</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-3'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-3'>#</a>
+      </div>
+      <p>MySQL configurations</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;mysql.cfg&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">mysql_cfg</span><span class="p">:</span>
+    <span class="n">mysql_cfg_lines</span> <span class="o">=</span> <span class="n">mysql_cfg</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;MYSQL_USER&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mysql_cfg_lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;MYSQL_PASSWORD&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mysql_cfg_lines</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;MYSQL_DB&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mysql_cfg_lines</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;MYSQL_HOST&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mysql_cfg_lines</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+<span class="n">mysql</span> <span class="o">=</span> <span class="n">MySQL</span><span class="p">(</span><span class="n">app</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-4'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-4'>#</a>
+      </div>
+      <p><a href="https://cloud.google.com/translate/docs">Google Translate</a> and <a href="https://developers.google.com/sheets/api">Google Sheets</a> credentials</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="n">tr_credentials</span> <span class="o">=</span> <span class="n">service_account</span><span class="o">.</span><span class="n">Credentials</span><span class="o">.</span><span class="n">from_service_account_file</span><span class="p">(</span><span class="s2">&quot;My Project-1f2512d178cb.json&quot;</span><span class="p">)</span>
+<span class="n">translate_client</span> <span class="o">=</span> <span class="n">translate</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="n">credentials</span><span class="o">=</span><span class="n">tr_credentials</span><span class="p">)</span>
+
+<span class="n">scopes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;https://www.googleapis.com/auth/spreadsheets&#39;</span><span class="p">,</span> <span class="s1">&#39;https://www.googleapis.com/auth/drive&#39;</span><span class="p">]</span>
+<span class="n">scoped_gs</span> <span class="o">=</span> <span class="n">tr_credentials</span><span class="o">.</span><span class="n">with_scopes</span><span class="p">(</span><span class="n">scopes</span><span class="p">)</span>
+<span class="n">sheets_client</span> <span class="o">=</span> <span class="n">build</span><span class="p">(</span><span class="s1">&#39;sheets&#39;</span><span class="p">,</span> <span class="s1">&#39;v4&#39;</span><span class="p">,</span> <span class="n">credentials</span><span class="o">=</span><span class="n">scoped_gs</span><span class="p">)</span>
+<span class="n">sheet</span> <span class="o">=</span> <span class="n">sheets_client</span><span class="o">.</span><span class="n">spreadsheets</span><span class="p">()</span>
+<span class="n">tracking_ws</span> <span class="o">=</span> <span class="s2">&quot;1F4nXX1QoyV1miaRUop2ctm8snDyov6GNu9aLt9t3a3M&quot;</span> 
+<span class="n">ranges</span> <span class="o">=</span> <span class="s2">&quot;Workflow_Tracking!A3:S87078&quot;</span>
+
+<span class="n">drive_client</span> <span class="o">=</span> <span class="n">build</span><span class="p">(</span><span class="s1">&#39;drive&#39;</span><span class="p">,</span> <span class="s1">&#39;v3&#39;</span><span class="p">,</span> <span class="n">credentials</span><span class="o">=</span><span class="n">scoped_gs</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-5'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-5'>#</a>
+      </div>
+      <p><a href="https://developer.box.com/">Box API</a> configurations</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;box_config.json&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">boxapi</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="n">box_auth</span> <span class="o">=</span> <span class="n">boxsdk</span><span class="o">.</span><span class="n">JWTAuth</span><span class="p">(</span>
+    <span class="n">client_id</span><span class="o">=</span><span class="n">boxapi</span><span class="p">[</span><span class="s2">&quot;boxAppSettings&quot;</span><span class="p">][</span><span class="s2">&quot;clientID&quot;</span><span class="p">],</span>
+    <span class="n">client_secret</span><span class="o">=</span><span class="n">boxapi</span><span class="p">[</span><span class="s2">&quot;boxAppSettings&quot;</span><span class="p">][</span><span class="s2">&quot;clientSecret&quot;</span><span class="p">],</span>
+    <span class="n">enterprise_id</span><span class="o">=</span><span class="n">boxapi</span><span class="p">[</span><span class="s2">&quot;enterpriseID&quot;</span><span class="p">],</span>
+    <span class="n">jwt_key_id</span><span class="o">=</span><span class="n">boxapi</span><span class="p">[</span><span class="s2">&quot;boxAppSettings&quot;</span><span class="p">][</span><span class="s2">&quot;appAuth&quot;</span><span class="p">][</span><span class="s2">&quot;publicKeyID&quot;</span><span class="p">],</span>
+    <span class="n">rsa_private_key_data</span><span class="o">=</span><span class="n">boxapi</span><span class="p">[</span><span class="s2">&quot;boxAppSettings&quot;</span><span class="p">][</span><span class="s2">&quot;appAuth&quot;</span><span class="p">][</span><span class="s2">&quot;privateKey&quot;</span><span class="p">],</span>
+    <span class="n">rsa_private_key_passphrase</span><span class="o">=</span><span class="n">boxapi</span><span class="p">[</span><span class="s2">&quot;boxAppSettings&quot;</span><span class="p">][</span><span class="s2">&quot;appAuth&quot;</span><span class="p">][</span><span class="s2">&quot;passphrase&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+
+<span class="n">box_access_token</span> <span class="o">=</span> <span class="n">box_auth</span><span class="o">.</span><span class="n">authenticate_instance</span><span class="p">()</span>
+<span class="n">box_client</span> <span class="o">=</span> <span class="n">boxsdk</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="n">box_auth</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-6'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-6'>#</a>
+      </div>
+      <h3><span id="helper-functions" href="helper-functions"> Helper Functions </span></h3>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-7'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-7'>#</a>
+      </div>
+      <p>Roman numeral utility. Takes in integer Arabic number to be converted 
+(must be between 1 and 9) and turns it into a string of the Roman numeral.</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="k">def</span> <span class="nf">toRoman</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+    <span class="n">romans</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;I&quot;</span><span class="p">,</span> <span class="s2">&quot;II&quot;</span><span class="p">,</span> <span class="s2">&quot;III&quot;</span><span class="p">,</span> <span class="s2">&quot;IV&quot;</span><span class="p">,</span> <span class="s2">&quot;V&quot;</span><span class="p">,</span> <span class="s2">&quot;VI&quot;</span><span class="p">,</span> <span class="s2">&quot;VII&quot;</span><span class="p">,</span> <span class="s2">&quot;VIII&quot;</span><span class="p">,</span> <span class="s2">&quot;IX&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">():</span>
+        <span class="n">romin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">romin</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">romin</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">romin</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">romans</span><span class="p">):</span>
+        <span class="n">romreg</span> <span class="o">=</span> <span class="n">romans</span><span class="p">[</span><span class="n">romin</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">romreg</span> <span class="o">=</span> <span class="n">data</span>
+    <span class="k">return</span> <span class="n">romreg</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-8'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-8'>#</a>
+      </div>
+      <p>Main function to retrieve information from various data sources.
+Called often at beginning of page load to make sure all information is up to date.</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="k">def</span> <span class="nf">pullPre</span><span class="p">():</span>
+    <span class="n">gsheet</span> <span class="o">=</span> <span class="n">sheet</span><span class="o">.</span><span class="n">values</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">spreadsheetId</span><span class="o">=</span><span class="n">tracking_ws</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">ranges</span><span class="p">,</span> <span class="n">majorDimension</span><span class="o">=</span><span class="s2">&quot;COLUMNS&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">gsheet</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;values&#39;</span><span class="p">,</span> <span class="p">[])</span>
+    <span class="n">links</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="mi">11</span><span class="p">]</span>
+    <span class="n">dones</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="mi">18</span><span class="p">]</span>
+    <span class="n">artsDW</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="mi">12</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">a</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">is_art</span> <span class="o">=</span> <span class="s2">&quot;no&quot;</span>
+        <span class="n">is_plaster</span> <span class="o">=</span> <span class="s2">&quot;no&quot;</span>
+        <span class="n">v</span><span class="p">[</span><span class="s2">&quot;pinpimgs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">v</span><span class="p">[</span><span class="s2">&quot;ppmimgs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">pinpCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">pinpQuery</span> <span class="o">=</span> <span class="s2">&quot;SELECT * FROM `PinP_preq` WHERE `ARC`=&#39;&quot;</span> <span class="o">+</span> <span class="n">a</span> <span class="o">+</span><span class="s2">&quot;&#39; OR `other_ARC` LIKE &#39;%&quot;</span> <span class="o">+</span> <span class="n">a</span> <span class="o">+</span> <span class="s2">&quot;%&#39;;&quot;</span>
+        <span class="n">pinpCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pinpQuery</span><span class="p">)</span>
+        <span class="n">pinpdata</span> <span class="o">=</span> <span class="n">pinpCur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">pinpCur</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">pinpdata</span><span class="p">:</span>
+            <span class="n">v</span><span class="p">[</span><span class="s2">&quot;pinpimgs&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;maybe&quot;</span> <span class="ow">and</span> <span class="n">is_art</span> <span class="o">==</span> <span class="s2">&quot;no&quot;</span><span class="p">:</span>
+                <span class="n">is_art</span> <span class="o">=</span> <span class="s2">&quot;maybe&quot;</span>
+            <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;yes&quot;</span> <span class="ow">and</span> <span class="p">(</span><span class="n">is_art</span> <span class="o">==</span> <span class="s2">&quot;no&quot;</span> <span class="ow">or</span> <span class="n">is_art</span> <span class="o">==</span> <span class="s2">&quot;maybe&quot;</span><span class="p">):</span>
+                <span class="n">is_art</span> <span class="o">=</span> <span class="s2">&quot;yes&quot;</span>
+            <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;maybe&quot;</span> <span class="ow">and</span> <span class="n">is_plaster</span> <span class="o">==</span> <span class="s2">&quot;no&quot;</span><span class="p">:</span>
+                <span class="n">is_plaster</span> <span class="o">=</span> <span class="s2">&quot;maybe&quot;</span>
+            <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;yes&quot;</span> <span class="ow">and</span> <span class="p">(</span><span class="n">is_plaster</span> <span class="o">==</span> <span class="s2">&quot;no&quot;</span> <span class="ow">or</span> <span class="n">is_plaster</span> <span class="o">==</span> <span class="s2">&quot;maybe&quot;</span><span class="p">):</span>
+                <span class="n">is_plaster</span> <span class="o">=</span> <span class="s2">&quot;yes&quot;</span>
+            <span class="n">v</span><span class="p">[</span><span class="s2">&quot;notes&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="n">d</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+
+        <span class="n">ppmCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">ppmQuery</span> <span class="o">=</span> <span class="s2">&quot;SELECT * FROM `PPM_preq` WHERE `ARC`=&#39;&quot;</span> <span class="o">+</span> <span class="n">a</span> <span class="o">+</span><span class="s2">&quot;&#39; OR `other_ARC` LIKE &#39;%&quot;</span> <span class="o">+</span> <span class="n">a</span> <span class="o">+</span> <span class="s2">&quot;%&#39;;&quot;</span>
+        <span class="n">ppmCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">ppmQuery</span><span class="p">)</span>
+        <span class="n">ppmdata</span> <span class="o">=</span> <span class="n">ppmCur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">ppmCur</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">ppmdata</span><span class="p">:</span>
+            <span class="n">v</span><span class="p">[</span><span class="s2">&quot;ppmimgs&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;maybe&quot;</span> <span class="ow">and</span> <span class="n">is_art</span> <span class="o">==</span> <span class="s2">&quot;no&quot;</span><span class="p">:</span>
+                <span class="n">is_art</span> <span class="o">=</span> <span class="s2">&quot;maybe&quot;</span>
+            <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;yes&quot;</span> <span class="ow">and</span> <span class="p">(</span><span class="n">is_art</span> <span class="o">==</span> <span class="s2">&quot;no&quot;</span> <span class="ow">or</span> <span class="n">is_art</span> <span class="o">==</span> <span class="s2">&quot;maybe&quot;</span><span class="p">):</span>
+                <span class="n">is_art</span> <span class="o">=</span> <span class="s2">&quot;yes&quot;</span>
+            <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;maybe&quot;</span> <span class="ow">and</span> <span class="n">is_plaster</span> <span class="o">==</span> <span class="s2">&quot;no&quot;</span><span class="p">:</span>
+                <span class="n">is_plaster</span> <span class="o">=</span> <span class="s2">&quot;maybe&quot;</span>
+            <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;yes&quot;</span> <span class="ow">and</span> <span class="p">(</span><span class="n">is_plaster</span> <span class="o">==</span> <span class="s2">&quot;no&quot;</span> <span class="ow">or</span> <span class="n">is_plaster</span> <span class="o">==</span> <span class="s2">&quot;maybe&quot;</span><span class="p">):</span>
+                <span class="n">is_plaster</span> <span class="o">=</span> <span class="s2">&quot;yes&quot;</span>
+            <span class="n">v</span><span class="p">[</span><span class="s2">&quot;notes&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="n">d</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+
+        <span class="n">v</span><span class="p">[</span><span class="s2">&quot;is_art&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">is_art</span>
+        <span class="n">v</span><span class="p">[</span><span class="s2">&quot;is_plaster&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">is_plaster</span>
+
+        <span class="n">l</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;trackerindex&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">links</span><span class="p">[</span><span class="n">l</span><span class="p">]:</span>
+            <span class="n">v</span><span class="p">[</span><span class="s2">&quot;link&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">links</span><span class="p">[</span><span class="n">l</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">dones</span><span class="p">[</span><span class="n">l</span><span class="p">]:</span>
+            <span class="n">v</span><span class="p">[</span><span class="s2">&quot;done&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="s2">&quot;No from DW&quot;</span> <span class="ow">in</span> <span class="n">artsDW</span><span class="p">[</span><span class="n">l</span><span class="p">]:</span>
+            <span class="n">v</span><span class="p">[</span><span class="s2">&quot;noart&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="s2">&quot;Unknown from DW&quot;</span> <span class="ow">in</span> <span class="n">artsDW</span><span class="p">[</span><span class="n">l</span><span class="p">]:</span>
+            <span class="n">v</span><span class="p">[</span><span class="s2">&quot;unknown&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">arcCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">arcQuery</span> <span class="o">=</span> <span class="s1">&#39;SELECT uuid FROM PPP_desc WHERE ARCs LIKE &quot;%&#39;</span> <span class="o">+</span> <span class="n">a</span> <span class="o">+</span><span class="s1">&#39;%&quot;;&#39;</span>
+        <span class="n">arcCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">arcQuery</span><span class="p">)</span>
+        <span class="n">newarcs</span> <span class="o">=</span> <span class="n">arcCur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">v</span><span class="p">[</span><span class="s1">&#39;ppps&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">newarcs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">newarcs</span><span class="p">:</span>
+                <span class="n">v</span><span class="p">[</span><span class="s1">&#39;ppps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-9'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-9'>#</a>
+      </div>
+      <h3><span id="forms" href="forms"> Forms </span></h3>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-10'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-10'>#</a>
+      </div>
+      <p>Log-in form. Pulls credentials from user.cfg</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/login&quot;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="k">def</span> <span class="nf">login</span><span class="p">():</span>
+    <span class="n">error</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;user.cfg&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">user_cfg</span><span class="p">:</span>
+        <span class="n">user_lines</span> <span class="o">=</span> <span class="n">user_cfg</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+        <span class="n">username</span> <span class="o">=</span> <span class="n">user_lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="n">user_lines</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;password&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">password</span> <span class="ow">and</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;username&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">username</span><span class="p">:</span>
+        <span class="n">session</span><span class="p">[</span><span class="s1">&#39;logged_in&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">error</span> <span class="o">=</span> <span class="s1">&#39;Sorry, wrong password!&#39;</span>
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="n">error</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-11'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-11'>#</a>
+      </div>
+      <p>Form submitted from home page to select location</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/init&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;POST&#39;</span><span class="p">])</span> 
+<span class="k">def</span> <span class="nf">init</span><span class="p">():</span>
+    <span class="n">session</span><span class="p">[</span><span class="s1">&#39;carryoverPPP&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">session</span><span class="p">[</span><span class="s1">&#39;carryoverPPPids&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">session</span><span class="p">[</span><span class="s1">&#39;region&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">session</span><span class="p">[</span><span class="s1">&#39;insula&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">session</span><span class="p">[</span><span class="s1">&#39;property&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">session</span><span class="p">[</span><span class="s1">&#39;room&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;region&#39;</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;region&#39;</span><span class="p">]:</span>
+            <span class="n">session</span><span class="p">[</span><span class="s1">&#39;region&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;region&#39;</span><span class="p">]</span>
+        
+    <span class="k">if</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;insula&#39;</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;insula&#39;</span><span class="p">]:</span>
+            <span class="n">session</span><span class="p">[</span><span class="s1">&#39;insula&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;insula&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">session</span><span class="p">[</span><span class="s1">&#39;insula&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;property&#39;</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;property&#39;</span><span class="p">]:</span>
+            <span class="n">session</span><span class="p">[</span><span class="s1">&#39;property&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;property&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">session</span><span class="p">[</span><span class="s1">&#39;property&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;room&#39;</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;room&#39;</span><span class="p">]:</span>
+            <span class="n">session</span><span class="p">[</span><span class="s1">&#39;room&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;room&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">session</span><span class="p">[</span><span class="s1">&#39;room&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="n">building</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;region&#39;</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;-i&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;insula&#39;</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;-p&quot;</span> <span class="o">+</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;property&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;-space-&quot;</span> <span class="o">+</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;room&#39;</span><span class="p">]</span>
+    <span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">session</span><span class="p">[</span><span class="s1">&#39;current&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="n">gsheet</span> <span class="o">=</span> <span class="n">sheet</span><span class="o">.</span><span class="n">values</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">spreadsheetId</span><span class="o">=</span><span class="n">tracking_ws</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">ranges</span><span class="p">,</span> <span class="n">majorDimension</span><span class="o">=</span><span class="s2">&quot;COLUMNS&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">gsheet</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;values&#39;</span><span class="p">,</span> <span class="p">[])</span>
+    <span class="n">locationlist</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">arclist</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="mi">7</span><span class="p">]</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-12'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-12'>#</a>
+      </div>
+      <p>Set up dictionary for information about each ARC at location</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>    <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">locationlist</span><span class="p">)):</span>
+        <span class="n">places</span> <span class="o">=</span> <span class="n">locationlist</span><span class="p">[</span><span class="n">l</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">places</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;r&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;region&#39;</span><span class="p">]))</span> <span class="ow">and</span> <span class="p">((</span><span class="n">places</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;i&quot;</span> <span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;insula&#39;</span><span class="p">]))</span> <span class="ow">or</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;insula&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="p">((</span><span class="n">places</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;p&quot;</span> <span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;property&#39;</span><span class="p">]))</span> <span class="ow">or</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;property&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="p">((</span><span class="s2">&quot;-&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">places</span><span class="p">[</span><span class="mi">3</span><span class="p">:])</span> <span class="o">==</span> <span class="s2">&quot;space-&quot;</span> <span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;room&#39;</span><span class="p">]))</span> <span class="ow">or</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;room&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">):</span>
+            <span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">][</span><span class="n">arclist</span><span class="p">[</span><span class="n">l</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;link&quot;</span><span class="p">:</span> <span class="s2">&quot;None&quot;</span><span class="p">,</span> 
+                                              <span class="s2">&quot;is_art&quot;</span><span class="p">:</span> <span class="s2">&quot;Not defined&quot;</span><span class="p">,</span>
+                                              <span class="s2">&quot;is_plaster&quot;</span><span class="p">:</span> <span class="s2">&quot;Not defined&quot;</span><span class="p">,</span>
+                                              <span class="s2">&quot;pinpimgs&quot;</span><span class="p">:</span> <span class="p">[],</span>
+                                              <span class="s2">&quot;ppmimgs&quot;</span><span class="p">:</span> <span class="p">[],</span>
+                                              <span class="s2">&quot;notes&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                                              <span class="s2">&quot;done&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                                              <span class="s2">&quot;noart&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                                              <span class="s2">&quot;unknown&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                                              <span class="s2">&quot;trackerindex&quot;</span><span class="p">:</span> <span class="n">l</span><span class="p">,</span> 
+                                              <span class="s2">&quot;ppps&quot;</span><span class="p">:</span> <span class="p">[]}</span>
+
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s1">&#39;/ARCs&#39;</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-13'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-13'>#</a>
+      </div>
+      <h3><span id="user-pages" href="user-pages"> User Pages </span></h3>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-14'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-14'>#</a>
+      </div>
+      <p>Custom server error handler</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">errorhandler</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">internal_server_error</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;500.html&#39;</span><span class="p">),</span> <span class="mi">500</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-15'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-15'>#</a>
+      </div>
+      <p>Home page, displays either login form or location choice form</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span> 
+<span class="k">def</span> <span class="nf">index</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-16'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-16'>#</a>
+      </div>
+      <p>Initial call to <a href="#helper-functions">pullPre()</a> to get ARC options</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/ARCs&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">chooseARCs</span><span class="p">():</span>
+    <span class="k">if</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;logged_in&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">session</span><span class="p">[</span><span class="s2">&quot;logged_in&quot;</span><span class="p">]:</span>
+        <span class="n">pullPre</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;chooseARCs.html&quot;</span><span class="p">,</span> <span class="n">arcs</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">],</span> 
+                               <span class="n">region</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;region&#39;</span><span class="p">],</span> <span class="n">insula</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;insula&#39;</span><span class="p">],</span> 
+                               <span class="nb">property</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;property&#39;</span><span class="p">],</span> <span class="n">room</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;room&#39;</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">error</span><span class="o">=</span> <span class="s2">&quot;Sorry, this page is only accessible by logging in.&quot;</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="n">arc</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="n">error</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-17'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-17'>#</a>
+      </div>
+      <p>Clear old variables and set session ARC </p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/makedoc/&lt;chosenarc&gt;&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">makedoc</span><span class="p">(</span><span class="n">chosenarc</span><span class="p">):</span>
+    <span class="n">session</span><span class="p">[</span><span class="s1">&#39;carryoverPPP&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">session</span><span class="p">[</span><span class="s1">&#39;carryoverPPPids&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>    
+    <span class="n">session</span><span class="p">[</span><span class="s1">&#39;current&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">chosenarc</span>
+    
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s1">&#39;/PPP&#39;</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-18'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-18'>#</a>
+      </div>
+      <p>Display PPP entries and allow the user to select which ones belong to the current ARC</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/PPP&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">showPPP</span><span class="p">():</span>
+
+    <span class="k">if</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;logged_in&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">session</span><span class="p">[</span><span class="s2">&quot;logged_in&quot;</span><span class="p">]:</span>
+        <span class="n">pullPre</span><span class="p">()</span>
+        <span class="n">inswithz</span> <span class="o">=</span> <span class="n">propwithz</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="n">pppCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">rm</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-19'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-19'>#</a>
+      </div>
+      <p>User may not have input room identifier</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>        <span class="k">if</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;room&#39;</span><span class="p">]:</span>
+            <span class="n">rm</span> <span class="o">=</span> <span class="s2">&quot;&#39; and `Room` = &#39;&quot;</span> <span class="o">+</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;room&#39;</span><span class="p">]</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-20'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-20'>#</a>
+      </div>
+      <p>Get related PPP entries for location</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>        <span class="n">pppQuery</span> <span class="o">=</span> <span class="s2">&quot;SELECT uuid, description, id, location, material, Room FROM PPP WHERE `Region` = &#39;&quot;</span> <span class="o">+</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;region&#39;</span><span class="p">]</span><span class="o">+</span> <span class="s2">&quot;&#39; and `Insula` = &#39;&quot;</span> <span class="o">+</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;insula&#39;</span><span class="p">]</span><span class="o">+</span> <span class="s2">&quot;&#39; and `Doorway` = &#39;&quot;</span> <span class="o">+</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;property&#39;</span><span class="p">]</span><span class="o">+</span> <span class="n">rm</span><span class="o">+</span><span class="s2">&quot;&#39;;&quot;</span>
+
+        <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQuery</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">pppCur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">pppCur</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">indices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="n">transdata</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">dataplustrans</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-21'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-21'>#</a>
+      </div>
+      <p>PPP data is written in Italian; use live Google Translate</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>            <span class="n">translation</span> <span class="o">=</span> <span class="n">translate_client</span><span class="o">.</span><span class="n">translate</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">target_language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span> <span class="n">source_language</span><span class="o">=</span><span class="s2">&quot;it&quot;</span><span class="p">)</span>
+            <span class="n">transdata</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">translation</span><span class="p">[</span><span class="s1">&#39;translatedText&#39;</span><span class="p">])</span>
+            <span class="n">dlist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+            <span class="n">dlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">translation</span><span class="p">[</span><span class="s1">&#39;translatedText&#39;</span><span class="p">])</span>
+
+            <span class="n">arcCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+            <span class="n">arcQuery</span> <span class="o">=</span> <span class="s1">&#39;SELECT ARCs FROM PPP_desc WHERE uuid = &quot;&#39;</span> <span class="o">+</span><span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span><span class="s1">&#39;&quot;;&#39;</span>
+            <span class="n">arcCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">arcQuery</span><span class="p">)</span>
+            <span class="n">newarcs</span> <span class="o">=</span> <span class="n">arcCur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+            <span class="n">arcCur</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">newarcs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">dlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">newarcs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+            <span class="n">dataplustrans</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dlist</span><span class="p">)</span>
+
+        <span class="n">current</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;current&#39;</span><span class="p">]</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">][</span><span class="n">current</span><span class="p">]</span>
+        <span class="n">carryCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-22'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-22'>#</a>
+      </div>
+      <p>Show descriptions from entries previously selected as related to this ARC</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>        <span class="n">carryQuery</span> <span class="o">=</span> <span class="s2">&quot;SELECT description, reviewed FROM PPP WHERE uuid in (&#39;&quot;</span> <span class="o">+</span> <span class="s2">&quot;&#39;,&#39;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="s2">&quot;ppps&quot;</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;&#39;) ;&quot;</span>
+        <span class="n">carryCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">carryQuery</span><span class="p">)</span>
+        <span class="n">dataList</span> <span class="o">=</span> <span class="n">carryCur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">carryCur</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">dataCopy</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dataList</span><span class="p">:</span>
+            <span class="n">dataCopy</span> <span class="o">+=</span> <span class="n">translate_client</span><span class="o">.</span><span class="n">translate</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">target_language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span> <span class="n">source_language</span><span class="o">=</span><span class="s2">&quot;it&quot;</span><span class="p">)[</span><span class="s1">&#39;translatedText&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;; &quot;</span>
+
+        <span class="n">session</span><span class="p">[</span><span class="s1">&#39;carryoverPPP&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dataCopy</span>
+
+
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;PPP.html&#39;</span><span class="p">,</span>
+            <span class="n">catextppp</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;carryoverPPP&#39;</span><span class="p">],</span> <span class="n">dbdata</span> <span class="o">=</span> <span class="n">dataplustrans</span><span class="p">,</span> <span class="n">indices</span> <span class="o">=</span> <span class="n">indices</span><span class="p">,</span> <span class="n">arc</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;current&#39;</span><span class="p">],</span>
+            <span class="n">region</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;region&#39;</span><span class="p">],</span> <span class="n">insula</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;insula&#39;</span><span class="p">],</span> <span class="nb">property</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;property&#39;</span><span class="p">],</span> <span class="n">room</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;room&#39;</span><span class="p">])</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">error</span><span class="o">=</span> <span class="s2">&quot;Sorry, this page is only accessible by logging in.&quot;</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="n">arc</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="n">error</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-23'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-23'>#</a>
+      </div>
+      <p>Show PPM and PinP images tagged with this ARC from the <a href="https://prequel.p-lod.umasscreate.net/">Prequel Workspace</a></p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/associated&quot;</span><span class="p">)</span> 
+<span class="k">def</span> <span class="nf">showAssociated</span><span class="p">():</span>
+
+    <span class="k">if</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;logged_in&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">session</span><span class="p">[</span><span class="s2">&quot;logged_in&quot;</span><span class="p">]:</span>
+        <span class="n">pullPre</span><span class="p">()</span>
+        <span class="n">current</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;current&#39;</span><span class="p">]</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">][</span><span class="n">current</span><span class="p">]</span>
+        <span class="n">totpinp</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;pinpimgs&#39;</span><span class="p">]:</span>
+            <span class="n">assocCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+            <span class="n">assocQuery</span> <span class="o">=</span> <span class="s2">&quot;SELECT DISTINCT `archive_id`, `id_box_file`, `img_alt` FROM `PinP` WHERE `archive_id` = &#39;&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;&#39; ORDER BY `img_url` &quot;</span>
+            <span class="n">assocCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">assocQuery</span><span class="p">)</span>
+            <span class="n">all0</span> <span class="o">=</span> <span class="n">assocCur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+            <span class="n">totpinp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">all0</span><span class="p">)</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">all0</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;.jpg&quot;</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;static/images/&quot;</span><span class="o">+</span><span class="n">filename</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">thumbnail</span> <span class="o">=</span> <span class="n">box_client</span><span class="o">.</span><span class="n">file</span><span class="p">(</span><span class="n">all0</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">get_thumbnail</span><span class="p">(</span><span class="n">extension</span><span class="o">=</span><span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="n">min_width</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">boxsdk</span><span class="o">.</span><span class="n">BoxAPIException</span> <span class="k">as</span> <span class="n">exception</span><span class="p">:</span>
+                    <span class="n">thumbnail</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="p">,</span> <span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;static/images&quot;</span><span class="p">,</span><span class="n">filename</span><span class="p">),</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">thumbnail</span><span class="p">)</span>
+            <span class="n">assocCur</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">totppm</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;ppmimgs&#39;</span><span class="p">]:</span>
+            <span class="n">assocCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+            <span class="n">assocQuery</span> <span class="o">=</span> <span class="s2">&quot;SELECT DISTINCT `id`, `image_id`, `translated_text` FROM `PPM` WHERE `id` = &#39;&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;&#39;&quot;</span>
+            <span class="n">assocCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">assocQuery</span><span class="p">)</span>
+            <span class="n">all0</span> <span class="o">=</span> <span class="n">assocCur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+            <span class="n">totppm</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">all0</span><span class="p">)</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">all0</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;.jpg&quot;</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;static/images/&quot;</span><span class="o">+</span><span class="n">filename</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">thumbnail</span> <span class="o">=</span> <span class="n">box_client</span><span class="o">.</span><span class="n">file</span><span class="p">(</span><span class="n">all0</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">get_thumbnail</span><span class="p">(</span><span class="n">extension</span><span class="o">=</span><span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="n">min_width</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">boxsdk</span><span class="o">.</span><span class="n">BoxAPIException</span> <span class="k">as</span> <span class="n">exception</span><span class="p">:</span>
+                    <span class="n">thumbnail</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="p">,</span> <span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;static/images&quot;</span><span class="p">,</span><span class="n">filename</span><span class="p">),</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">thumbnail</span><span class="p">)</span>
+            <span class="n">assocCur</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;associated.html&#39;</span><span class="p">,</span> <span class="n">arc</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;current&#39;</span><span class="p">],</span>
+            <span class="n">region</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;region&#39;</span><span class="p">],</span> <span class="n">insula</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;insula&#39;</span><span class="p">],</span> <span class="nb">property</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;property&#39;</span><span class="p">],</span> <span class="n">room</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;room&#39;</span><span class="p">],</span>
+            <span class="n">totpinp</span><span class="o">=</span><span class="n">totpinp</span><span class="p">,</span> <span class="n">totppm</span><span class="o">=</span><span class="n">totppm</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">error</span><span class="o">=</span> <span class="s2">&quot;Sorry, this page is only accessible by logging in.&quot;</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="n">arc</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="n">error</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-24'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-24'>#</a>
+      </div>
+      <p>Assist user in copying data from workspace site to Google Sheet</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/descriptions&#39;</span><span class="p">)</span>  
+<span class="k">def</span> <span class="nf">showDescs</span><span class="p">():</span>
+    <span class="k">if</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;logged_in&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">session</span><span class="p">[</span><span class="s2">&quot;logged_in&quot;</span><span class="p">]:</span>
+        <span class="n">pullPre</span><span class="p">()</span>
+
+        <span class="n">current</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;current&#39;</span><span class="p">]</span>
+        <span class="n">gdoc</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">][</span><span class="n">current</span><span class="p">][</span><span class="s1">&#39;link&#39;</span><span class="p">]</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-25'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-25'>#</a>
+      </div>
+      <p>Copy template spreadsheet if one doesn&rsquo;t exist yet for this ARC</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>        <span class="k">if</span> <span class="s1">&#39;http&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">gdoc</span><span class="p">:</span>
+            <span class="n">template_spreadsheet_id</span> <span class="o">=</span> <span class="s2">&quot;13M3sk4RAOy2Jlq86ECdwR8m11MsOaUNF1unbP6yQF-g&quot;</span>
+            <span class="n">request_body</span> <span class="o">=</span> <span class="p">{</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Workspace_5_&quot;</span> <span class="o">+</span> <span class="n">current</span><span class="p">,</span> <span class="s2">&quot;parents&quot;</span><span class="p">:[</span><span class="s1">&#39;1G_ZH-20qmxudaymDXMPe0wT4w_C_r00Q&#39;</span><span class="p">]}</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">drive_client</span><span class="o">.</span><span class="n">files</span><span class="p">()</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">fileId</span> <span class="o">=</span> <span class="n">template_spreadsheet_id</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">request_body</span><span class="p">,</span> <span class="n">supportsAllDrives</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+            <span class="n">newID</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-26'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-26'>#</a>
+      </div>
+      <p>Update <a href="https://docs.google.com/spreadsheets/d/1F4nXX1QoyV1miaRUop2ctm8snDyov6GNu9aLt9t3a3M/edit">Workflow Tracker</a> with new URL (this also marks it as &ldquo;working&rdquo;)</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>            <span class="n">newrange</span> <span class="o">=</span> <span class="s2">&quot;Workflow_Tracking!L&quot;</span><span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">][</span><span class="n">current</span><span class="p">][</span><span class="s1">&#39;trackerindex&#39;</span><span class="p">]</span><span class="o">+</span><span class="mi">3</span><span class="p">)</span>
+            <span class="n">new_request</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;values&quot;</span><span class="p">:</span> <span class="p">[[</span><span class="s2">&quot;https://docs.google.com/spreadsheets/d/&quot;</span> <span class="o">+</span> <span class="n">newID</span><span class="p">]]}</span>
+            <span class="n">updatelink</span> <span class="o">=</span> <span class="n">sheet</span><span class="o">.</span><span class="n">values</span><span class="p">()</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">spreadsheetId</span><span class="o">=</span><span class="n">tracking_ws</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">newrange</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">new_request</span><span class="p">,</span> <span class="n">valueInputOption</span><span class="o">=</span><span class="s2">&quot;USER_ENTERED&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+
+            <span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">][</span><span class="n">current</span><span class="p">][</span><span class="s1">&#39;link&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;https://docs.google.com/spreadsheets/d/&quot;</span> <span class="o">+</span> <span class="n">newID</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-27'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-27'>#</a>
+      </div>
+      <p>Users allowed to access the description sheet</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>            <span class="n">auth_users</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;smastroianni@umass.edu&#39;</span><span class="p">,</span> <span class="s1">&#39;fdipietro@umass.edu&#39;</span><span class="p">,</span> <span class="s1">&#39;bmai@umass.edu&#39;</span><span class="p">,</span> <span class="s1">&#39;nicmjohnson@umass.edu&#39;</span><span class="p">,</span> <span class="s1">&#39;mcknapp@umass.edu&#39;</span><span class="p">,</span> 
+            <span class="s1">&#39;dbeason@umass.edu&#39;</span><span class="p">,</span> <span class="s1">&#39;lfield@umass.edu&#39;</span><span class="p">,</span> <span class="s1">&#39;tbernard@umass.edu&#39;</span><span class="p">,</span> <span class="s1">&#39;mhoffenberg@umass.edu&#39;</span><span class="p">,</span> <span class="s1">&#39;gsharaga@umass.edu&#39;</span><span class="p">,</span> <span class="s1">&#39;droller@umass.edu&#39;</span><span class="p">,</span> 
+            <span class="s1">&#39;shazizi@umass.edu&#39;</span><span class="p">,</span> <span class="s1">&#39;laurejt@umass.edu&#39;</span><span class="p">,</span> <span class="s1">&#39;abrenon@umass.edu&#39;</span><span class="p">,</span> <span class="s1">&#39;epoehler@classics.umass.edu&#39;</span><span class="p">,</span> <span class="s1">&#39;epoehler@gmail.com&#39;</span><span class="p">,</span> 
+            <span class="s1">&#39;palp-workspace@my-project-1537454316408.iam.gserviceaccount.com&#39;</span><span class="p">,</span> <span class="s1">&#39;plod@umass.edu&#39;</span><span class="p">,</span> <span class="s1">&#39;plodAD97@gmail.com&#39;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">auth_users</span><span class="p">:</span>
+                <span class="n">drive_client</span><span class="o">.</span><span class="n">permissions</span><span class="p">()</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">body</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span><span class="s2">&quot;writer&quot;</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s1">&#39;emailAddress&#39;</span><span class="p">:</span> <span class="n">u</span><span class="p">,</span> <span class="s1">&#39;sendNotificationEmail&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span> <span class="n">fileId</span><span class="o">=</span><span class="n">newID</span><span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+            <span class="n">drive_client</span><span class="o">.</span><span class="n">permissions</span><span class="p">()</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">body</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span><span class="s2">&quot;owner&quot;</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">:</span><span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;emailAddress&quot;</span><span class="p">:</span> <span class="s2">&quot;plodAD79@gmail.com&quot;</span><span class="p">},</span> <span class="n">transferOwnership</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">fileId</span><span class="o">=</span><span class="n">newID</span><span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+        
+        <span class="n">gdoc</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">][</span><span class="n">current</span><span class="p">][</span><span class="s1">&#39;link&#39;</span><span class="p">]</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">][</span><span class="n">current</span><span class="p">]</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-28'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-28'>#</a>
+      </div>
+      <p>Show chosen PinP image descriptions </p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>        <span class="n">totpinp</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;pinpimgs&#39;</span><span class="p">]:</span>
+            <span class="n">assocCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+            <span class="n">assocQuery</span> <span class="o">=</span> <span class="s2">&quot;SELECT DISTINCT `img_alt` FROM `PinP` WHERE `archive_id` = &#39;&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;&#39; ORDER BY `img_url` &quot;</span>
+            <span class="n">assocCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">assocQuery</span><span class="p">)</span>
+            <span class="n">all0</span> <span class="o">=</span> <span class="n">assocCur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">all0</span><span class="p">:</span>
+                <span class="n">totpinp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-29'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-29'>#</a>
+      </div>
+      <p>Show chosen PPM image descriptions </p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>        <span class="n">totppm</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;ppmimgs&#39;</span><span class="p">]:</span>
+            <span class="n">assocCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+            <span class="n">assocQuery</span> <span class="o">=</span> <span class="s2">&quot;SELECT DISTINCT `translated_text` FROM `PPM` WHERE `id` = &#39;&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;&#39;&quot;</span>
+            <span class="n">assocCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">assocQuery</span><span class="p">)</span>
+            <span class="n">all0</span> <span class="o">=</span> <span class="n">assocCur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">all0</span><span class="p">:</span>
+                <span class="n">totppm</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="n">carryoverpinp</span> <span class="o">=</span> <span class="s2">&quot;; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">totpinp</span><span class="p">)</span>
+        <span class="n">carryoverppm</span> <span class="o">=</span> <span class="s2">&quot;; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">totppm</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-30'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-30'>#</a>
+      </div>
+      <p>Get chosen PPP entries and translate</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>        <span class="n">current</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;current&#39;</span><span class="p">]</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">][</span><span class="n">current</span><span class="p">]</span>
+        <span class="n">carryCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">carryQuery</span> <span class="o">=</span> <span class="s2">&quot;SELECT description, reviewed FROM PPP WHERE uuid in (&#39;&quot;</span> <span class="o">+</span> <span class="s2">&quot;&#39;,&#39;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="s2">&quot;ppps&quot;</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;&#39;) ;&quot;</span>
+        <span class="n">carryCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">carryQuery</span><span class="p">)</span>
+        <span class="n">dataList</span> <span class="o">=</span> <span class="n">carryCur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">carryCur</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">dataCopy</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dataList</span><span class="p">:</span>
+            <span class="n">dataCopy</span> <span class="o">+=</span> <span class="n">translate_client</span><span class="o">.</span><span class="n">translate</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">target_language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span> <span class="n">source_language</span><span class="o">=</span><span class="s2">&quot;it&quot;</span><span class="p">)[</span><span class="s1">&#39;translatedText&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;; &quot;</span>
+
+        <span class="n">session</span><span class="p">[</span><span class="s1">&#39;carryoverPPP&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dataCopy</span>
+
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;descs.html&#39;</span><span class="p">,</span>
+            <span class="n">carryoverPPP</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;carryoverPPP&#39;</span><span class="p">],</span> <span class="n">carryoverPPM</span> <span class="o">=</span> <span class="n">carryoverppm</span><span class="p">,</span> <span class="n">carryoverPinP</span> <span class="o">=</span> <span class="n">carryoverpinp</span><span class="p">,</span>
+            <span class="n">region</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;region&#39;</span><span class="p">],</span> <span class="n">insula</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;insula&#39;</span><span class="p">],</span> <span class="nb">property</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;property&#39;</span><span class="p">],</span> <span class="n">room</span><span class="o">=</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;room&#39;</span><span class="p">],</span> <span class="n">gdoc</span><span class="o">=</span><span class="n">gdoc</span><span class="p">,</span> 
+            <span class="n">arc</span> <span class="o">=</span> <span class="n">current</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">error</span><span class="o">=</span> <span class="s2">&quot;Sorry, this page is only accessible by logging in.&quot;</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;index.html&#39;</span><span class="p">,</span> <span class="n">arc</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="n">error</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-31'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-31'>#</a>
+      </div>
+      <p>Help page</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/help&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">help</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;help.html&#39;</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-32'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-32'>#</a>
+      </div>
+      <h3><span id="update-forms" href="update-forms"> Update forms </span></h3>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-33'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-33'>#</a>
+      </div>
+      <p>When PPP items are changed via update form, update database</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/update-ppp&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="k">def</span> <span class="nf">updatePPP</span><span class="p">():</span>
+    <span class="n">pppCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+    <span class="n">dictargs</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+    <span class="n">date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">dictargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">vrep</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\&#39;</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="n">vrep</span> <span class="o">=</span> <span class="n">escape</span><span class="p">(</span><span class="n">vrep</span><span class="p">)</span>
+        <span class="n">sep</span> <span class="o">=</span> <span class="n">k</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span>
+        <span class="n">pppQuery</span> <span class="o">=</span> <span class="s2">&quot;INSERT INTO PPP(`uuid`) SELECT * FROM ( SELECT &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39; ) AS tmp WHERE NOT EXISTS ( SELECT 1 FROM PPP WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39; ) LIMIT 1;&quot;</span>
+        <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQuery</span><span class="p">)</span>
+        <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">sep</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;a&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryA</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `id` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryA</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sep</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;b&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryB</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `location` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryB</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sep</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;c&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryC</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `material` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryC</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sep</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;d&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryD</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `description` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryD</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sep</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;e&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryE</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `Region` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryE</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sep</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;f&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryF</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `Insula` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryF</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sep</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;g&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryG</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `Doorway` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryG</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sep</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;h&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryH</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `Room` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryH</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sep</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;i&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryI</span> <span class="o">=</span> <span class="s1">&#39;INSERT INTO `PPP_desc` (uuid, ARCs, date_added) VALUES (&quot;&#39;</span> <span class="o">+</span><span class="n">sep</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;&quot;,&quot;&#39;</span><span class="o">+</span><span class="n">vrep</span><span class="o">+</span><span class="s1">&#39;&quot;,&quot;&#39;</span><span class="o">+</span><span class="n">date</span><span class="o">+</span><span class="s1">&#39;&quot;) ON DUPLICATE KEY UPDATE `ARCs` = &quot;&#39;</span><span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s1">&#39;&quot;, `date_added` = &quot;&#39;</span> <span class="o">+</span> <span class="n">date</span> <span class="o">+</span><span class="s1">&#39;&quot;;&#39;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryI</span><span class="p">)</span>
+    <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="n">pppCur</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s1">&#39;/PPP&#39;</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-34'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-34'>#</a>
+      </div>
+      <p>Save associated PPP text to help with description </p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/carryover-button&#39;</span><span class="p">)</span> 
+<span class="k">def</span> <span class="nf">carryover_button</span><span class="p">():</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;catextppp&#39;</span><span class="p">)):</span>
+
+        <span class="n">strargs</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;catextppp&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;[&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;]&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">strargs</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">):</span>
+            <span class="n">addCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-35'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-35'>#</a>
+      </div>
+      <p>If there&rsquo;s already an ARC marked related to this entry, replace it with new choice</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>            <span class="n">addQuery</span> <span class="o">=</span> <span class="s1">&#39;INSERT INTO `PPP_desc` (uuid, ARCs, date_added) VALUES (&#39;</span> <span class="o">+</span><span class="n">i</span><span class="o">+</span><span class="s1">&#39;,&quot;&#39;</span><span class="o">+</span><span class="n">session</span><span class="p">[</span><span class="s2">&quot;current&quot;</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;&quot;,&quot;&#39;</span><span class="o">+</span><span class="n">date</span><span class="o">+</span><span class="s1">&#39;&quot;) ON DUPLICATE KEY UPDATE `ARCs` = &quot;&#39;</span><span class="o">+</span> <span class="n">session</span><span class="p">[</span><span class="s2">&quot;current&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;&quot;, `date_added` = &quot;&#39;</span> <span class="o">+</span> <span class="n">date</span> <span class="o">+</span><span class="s1">&#39;&quot;;&#39;</span>
+            <span class="n">addCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">addQuery</span><span class="p">)</span>
+            <span class="n">addCur</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">current</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;current&#39;</span><span class="p">]</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">][</span><span class="n">current</span><span class="p">]</span>
+        <span class="n">arcCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">arcQuery</span> <span class="o">=</span> <span class="s1">&#39;SELECT uuid FROM PPP_desc WHERE ARCs LIKE &quot;%&#39;</span> <span class="o">+</span> <span class="n">current</span> <span class="o">+</span><span class="s1">&#39;%&quot;;&#39;</span>
+        <span class="n">arcCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">arcQuery</span><span class="p">)</span>
+        <span class="n">newarcs</span> <span class="o">=</span> <span class="n">arcCur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">v</span><span class="p">[</span><span class="s1">&#39;ppps&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">newarcs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">newarcs</span><span class="p">:</span>
+                <span class="n">v</span><span class="p">[</span><span class="s1">&#39;ppps&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;/associated&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;/PPP&quot;</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-36'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-36'>#</a>
+      </div>
+      <h3>Update <a href="https://docs.google.com/spreadsheets/d/1F4nXX1QoyV1miaRUop2ctm8snDyov6GNu9aLt9t3a3M/edit?usp=sharing"> Workspace Tracker Google Sheet</a></h3>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-37'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-37'>#</a>
+      </div>
+      <p>Update the tracker &ldquo;art&rdquo; column to say &ldquo;No from DW&rdquo;</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/noart&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">noart</span><span class="p">():</span>
+    <span class="n">chosenarc</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;current&#39;</span><span class="p">]</span>
+    <span class="n">newrange</span> <span class="o">=</span> <span class="s2">&quot;Workflow_Tracking!M&quot;</span><span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">][</span><span class="n">chosenarc</span><span class="p">][</span><span class="s1">&#39;trackerindex&#39;</span><span class="p">]</span><span class="o">+</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">new_request</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;values&quot;</span><span class="p">:</span> <span class="p">[[</span><span class="s2">&quot;No from DW&quot;</span><span class="p">]]}</span>
+    <span class="n">updatelink</span> <span class="o">=</span> <span class="n">sheet</span><span class="o">.</span><span class="n">values</span><span class="p">()</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">spreadsheetId</span><span class="o">=</span><span class="n">tracking_ws</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">newrange</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">new_request</span><span class="p">,</span> <span class="n">valueInputOption</span><span class="o">=</span><span class="s2">&quot;RAW&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s1">&#39;/ARCs&#39;</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-38'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-38'>#</a>
+      </div>
+      <p>Update the tracker &ldquo;art&rdquo; column to say &ldquo;Unknown from DW&rdquo;</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/unknownart&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">unknownart</span><span class="p">():</span>
+    <span class="n">chosenarc</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;current&#39;</span><span class="p">]</span>
+    <span class="n">newrange</span> <span class="o">=</span> <span class="s2">&quot;Workflow_Tracking!M&quot;</span><span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">][</span><span class="n">chosenarc</span><span class="p">][</span><span class="s1">&#39;trackerindex&#39;</span><span class="p">]</span><span class="o">+</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">new_request</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;values&quot;</span><span class="p">:</span> <span class="p">[[</span><span class="s2">&quot;Unknown from DW&quot;</span><span class="p">]]}</span>
+    <span class="n">updatelink</span> <span class="o">=</span> <span class="n">sheet</span><span class="o">.</span><span class="n">values</span><span class="p">()</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">spreadsheetId</span><span class="o">=</span><span class="n">tracking_ws</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">newrange</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">new_request</span><span class="p">,</span> <span class="n">valueInputOption</span><span class="o">=</span><span class="s2">&quot;RAW&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s1">&#39;/ARCs&#39;</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-39'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-39'>#</a>
+      </div>
+      <p>Update the tracker when user marks &ldquo;Done&rdquo;</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/done&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;POST&#39;</span><span class="p">,</span> <span class="s1">&#39;GET&#39;</span><span class="p">])</span>
+<span class="k">def</span> <span class="nf">done</span><span class="p">():</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-40'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-40'>#</a>
+      </div>
+      <p>Hero image comes either from PPM or PinP; db query is different depending on this</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>    <span class="n">db</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;pinporppm&#39;</span><span class="p">]</span>
+    <span class="n">imgid</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;hero&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">db</span> <span class="o">==</span> <span class="s2">&quot;PinP_preq&quot;</span><span class="p">:</span>
+        <span class="n">dbid</span> <span class="o">=</span> <span class="s2">&quot;archive_id&quot;</span>
+    <span class="k">if</span> <span class="n">db</span> <span class="o">==</span> <span class="s2">&quot;PPM_preq&quot;</span><span class="p">:</span>
+        <span class="n">dbid</span> <span class="o">=</span> <span class="s2">&quot;id&quot;</span>
+    <span class="n">date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">ppmCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+    <span class="n">ppmQuery</span> <span class="o">=</span> <span class="s1">&#39;INSERT INTO `&#39;</span><span class="o">+</span><span class="n">db</span><span class="o">+</span><span class="s1">&#39;` (&#39;</span><span class="o">+</span><span class="n">dbid</span><span class="o">+</span><span class="s1">&#39;, hero_image, date_added) VALUES (&#39;</span><span class="o">+</span> <span class="n">imgid</span> <span class="o">+</span><span class="s1">&#39;,&quot;1&quot;,&#39;</span><span class="o">+</span> <span class="n">date</span> <span class="o">+</span><span class="s1">&#39;) ON DUPLICATE KEY UPDATE `hero_image` = &quot;1&quot;, `date_added` = &quot;&#39;</span> <span class="o">+</span> <span class="n">date</span> <span class="o">+</span><span class="s1">&#39;&quot;;&#39;</span>
+    <span class="n">ppmCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">ppmQuery</span><span class="p">)</span>
+    <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="n">ppmCur</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="n">chosenarc</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s1">&#39;current&#39;</span><span class="p">]</span>
+    <span class="n">newrange</span> <span class="o">=</span> <span class="s2">&quot;Workflow_Tracking!S&quot;</span><span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s1">&#39;ARClist&#39;</span><span class="p">][</span><span class="n">chosenarc</span><span class="p">][</span><span class="s1">&#39;trackerindex&#39;</span><span class="p">]</span><span class="o">+</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">new_request</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;values&quot;</span><span class="p">:</span> <span class="p">[[</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%m/</span><span class="si">%d</span><span class="s2">/%Y&quot;</span><span class="p">)]]}</span>
+    <span class="n">updatelink</span> <span class="o">=</span> <span class="n">sheet</span><span class="o">.</span><span class="n">values</span><span class="p">()</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">spreadsheetId</span><span class="o">=</span><span class="n">tracking_ws</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">newrange</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">new_request</span><span class="p">,</span> <span class="n">valueInputOption</span><span class="o">=</span><span class="s2">&quot;RAW&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s2">&quot;/ARCs&quot;</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-41'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-41'>#</a>
+      </div>
+      <h3><span id="separate-ppp-single-item-update-page" href="separate-ppp-single-item-update-page"> Separate PPP single item update page </span></h3>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-42'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-42'>#</a>
+      </div>
+      <p>Different credentials from main site</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/PPP-login&quot;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="k">def</span> <span class="nf">PPPlogin</span><span class="p">():</span>
+    <span class="n">error</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;userPPP.cfg&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">user_cfg</span><span class="p">:</span>
+        <span class="n">user_lines</span> <span class="o">=</span> <span class="n">user_cfg</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+        <span class="n">username</span> <span class="o">=</span> <span class="n">user_lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="n">user_lines</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;password&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">password</span> <span class="ow">and</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="s1">&#39;username&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">username</span><span class="p">:</span>
+        <span class="n">session</span><span class="p">[</span><span class="s1">&#39;PPPlogged_in&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s1">&#39;/PPP-single&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">error</span> <span class="o">=</span> <span class="s1">&#39;Sorry, wrong password!&#39;</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;PPP-single.html&#39;</span><span class="p">,</span> <span class="n">dbdata</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="n">error</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-43'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-43'>#</a>
+      </div>
+      <p>Edit one PPP at a time. URL parameter can be PPP ID or UUID</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/PPP-single&quot;</span><span class="p">)</span> 
+<span class="k">def</span> <span class="nf">showPPPSingle</span><span class="p">():</span>
+    <span class="k">if</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;PPPlogged_in&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">session</span><span class="p">[</span><span class="s2">&quot;PPPlogged_in&quot;</span><span class="p">]:</span>
+
+        <span class="n">error</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">pppCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;uuid&#39;</span><span class="p">)):</span>
+            <span class="n">pppQuery</span> <span class="o">=</span> <span class="s2">&quot;SELECT uuid, id, location, material, description, condition_ppp, style, bibliography, photo_negative FROM PPP WHERE `uuid` = &#39;&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;uuid&#39;</span><span class="p">])</span><span class="o">+</span><span class="s2">&quot;&#39;;&quot;</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQuery</span><span class="p">)</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">pppCur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exception</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="s1">&#39;error&#39;</span>
+                <span class="n">error</span><span class="o">=</span> <span class="s2">&quot;You searched for Unique ID &quot;</span><span class="o">+</span><span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;uuid&#39;</span><span class="p">]</span><span class="o">+</span><span class="s2">&quot;. That doesn&#39;t exist - please add an entry or try again.&quot;</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="s1">&#39;error&#39;</span>
+                <span class="n">error</span><span class="o">=</span> <span class="s2">&quot;You searched for Unique ID &quot;</span><span class="o">+</span><span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;uuid&#39;</span><span class="p">]</span><span class="o">+</span><span class="s2">&quot;. That doesn&#39;t exist - please add an entry or try again.&quot;</span>
+
+        <span class="k">elif</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">)):</span>
+            <span class="n">pppQuery</span> <span class="o">=</span> <span class="s2">&quot;SELECT uuid, id, location, material, description, condition_ppp, style, bibliography, photo_negative FROM PPP WHERE `id` = &#39;&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span><span class="o">+</span><span class="s2">&quot;&#39;;&quot;</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQuery</span><span class="p">)</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">pppCur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="s1">&#39;error&#39;</span>
+                <span class="n">error</span><span class="o">=</span> <span class="s2">&quot;You searched for PPPID &quot;</span><span class="o">+</span><span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span><span class="o">+</span><span class="s2">&quot;. That doesn&#39;t exist - please add an entry or try again.&quot;</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="s1">&#39;error&#39;</span>
+                <span class="n">error</span><span class="o">=</span> <span class="s2">&quot;You searched for PPPID &quot;</span><span class="o">+</span><span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span><span class="o">+</span><span class="s2">&quot;. That doesn&#39;t exist - please add an entry or try again.&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="s1">&#39;error&#39;</span>
+            <span class="n">error</span> <span class="o">=</span> <span class="s2">&quot;Please put a query in the URL using the format &lt;a href=&#39;https://workspace.p-lod.umasscreate.net/PPP-single?id=&#39;&gt;https://workspace.p-lod.umasscreate.net/PPP-single?id=&lt;/a&gt; or &lt;a href=&#39;https://workspace.p-lod.umasscreate.net/PPP-single?uuid=&#39;&gt;https://workspace.p-lod.umasscreate.net/PPP-single?uuid=&lt;/a&gt;.&quot;</span>
+        <span class="n">pppCur</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;PPP-single.html&#39;</span><span class="p">,</span> <span class="n">dbdata</span> <span class="o">=</span> <span class="n">data</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="n">error</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">error</span><span class="o">=</span> <span class="s2">&quot;This page is only accessible by logging in.&quot;</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;PPP-single.html&#39;</span><span class="p">,</span> <span class="n">dbdata</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="n">error</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-44'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-44'>#</a>
+      </div>
+      <p>Add or edit PPP entry in database</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/update-ppp-edit&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="k">def</span> <span class="nf">updatePPPEdit</span><span class="p">():</span>
+    <span class="n">pppCur</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+    <span class="n">dictargs</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+    <span class="n">date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">sep</span> <span class="o">=</span> <span class="n">dictargs</span><span class="p">[</span><span class="s1">&#39;uuid&#39;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">dictargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">pppQuery</span> <span class="o">=</span> <span class="s2">&quot;INSERT INTO PPP(`uuid`) SELECT * FROM ( SELECT &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;&#39; ) AS tmp WHERE NOT EXISTS ( SELECT 1 FROM PPP WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;&#39; ) LIMIT 1;&quot;</span>
+        <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQuery</span><span class="p">)</span>
+        <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="n">vrep</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\&#39;</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;PPPID&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryA</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `id` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryA</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;location&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryB</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `location` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryB</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;material&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryC</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `material` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryC</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;description&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryD</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `description` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryD</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;condition&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryE</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `condition_ppp` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryE</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;style&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryF</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `style` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryF</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;bibliography&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryG</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `bibliography` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryG</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;negative&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryH</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `photo_negative` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryH</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;region&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryI</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `Region` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryI</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;insula&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryJ</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `Insula` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryJ</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;doorway&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryK</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `Doorway` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryK</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;room&quot;</span><span class="p">:</span>
+            <span class="n">pppQueryL</span> <span class="o">=</span> <span class="s2">&quot;UPDATE PPP SET `Room` = &#39;&quot;</span> <span class="o">+</span> <span class="n">vrep</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE `uuid` = &#39;&quot;</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="s2">&quot;&#39;;&quot;</span>
+            <span class="n">pppCur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">pppQueryL</span><span class="p">)</span>
+    <span class="n">mysql</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="n">pppCur</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-45'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-45'>#</a>
+      </div>
+      <p>When new entry added, redirect back to page asking you to add parameters</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>    <span class="k">if</span> <span class="n">sep</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;new&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s1">&#39;/PPP-single&#39;</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-46'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-46'>#</a>
+      </div>
+      <p>Otherwise, &ldquo;next&rdquo; button leads user to next uuid numerically</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre>    <span class="k">else</span><span class="p">:</span>
+        <span class="n">nextidint</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">sep</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">nextid</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">nextidint</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="s1">&#39;/PPP-single?uuid=&#39;</span><span class="o">+</span><span class="n">nextid</span><span class="p">)</span></pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+  <div class='section' id='section-47'>
+    <div class='docs'>
+      <div class='octowrap'>
+        <a class='octothorpe' href='#section-47'>#</a>
+      </div>
+      <p>Run Flask app</p>
+    </div>
+    <div class='code'>
+      <div class="highlight"><pre><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+</pre></div>
+    </div>
+  </div>
+  <div class='clearall'></div>
+</div>
+</body>
