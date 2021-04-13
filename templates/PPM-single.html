@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>PPM</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/bootstrap-table@1.17.1/dist/bootstrap-table.min.css">
+    <script src="https://unpkg.com/bootstrap-table@1.17.1/dist/bootstrap-table.min.js"></script>
+    <script src="{{ url_for('static', filename='js/store.everything.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/jquery.resizableColumns.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap-table-master/src/extensions/resizable/bootstrap-table-resizable.js') }}"></script>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="header">
+            <p class="lead">PPM</p>
+        </div>
+        <div class="row">
+            <p style="color:red;">{{error|safe}}</p>
+        </div>
+{% if not session['PPPlogged_in'] %}
+<div class="row">
+    <form action="/PPP-login" method="POST">
+        <label for="username"> Username </label>
+        <input class="form-control" name="username" id="username" required>
+        <br/>
+        <label for="password"> Password </label>
+        <input type="password" class="form-control" name="password" id="password" required>
+        <br/>
+        <input type="submit" class="btn btn-primary" value="Log in">
+    </form>
+</div>
+{% elif dbdata != "error" %}
+{% for row in dbdata %}
+<div class="row">
+<div class="col">
+  <form id="inputform" action="/update-ppm-edit" method="POST">
+        <table class="table">
+            <tbody>
+                <tr>
+                    <td><p>Unique ID (uuid)</p></td>
+                    <td>{{row[0]}}</td>
+                </tr>
+                <tr>
+                    <td colspan="2"><p>Volume <input type="text" size="2" id="page" name="page" value="{{row[11]}}">&nbsp;Page <input type="text" size="2" id="page" name="page" value="{{row[12]}}">&nbsp;Caption <input type="text" size="2" id="caption" name="caption" value="{{row[13]}}"></p></td>
+                </tr>
+                <tr>
+                    <td colspan="2"><p>PDF Page {{row[17]}}&nbsp;&nbsp;&nbsp;Image {{row[18][:-4]}} on page</p></td>
+                </tr>
+                <tr>
+                    <td colspan="2">Region
+                    <input type="text" size="2" id="region" name="region" value="{{row[5]}}">
+                    Insula
+                    <input type="text" size="2" id="insula" name="insula" value="{{row[6]}}">
+                    Primary doorway
+                    <input type="text" size="2" id="doorway" name="doorway" value="{{row[7]}}"><br/>
+                    Secondary doors
+                    <input type="text" size="2" id="doorways" name="doorways" value="{{row[8]}}">
+                    Room
+                    <input type="text" size="2" id="room" name="room" value="{{row[9]}}"></td>
+                </tr>
+                <tr>
+                    <td><p>Description (Italian)</p></td>
+                    <td><textarea id="description" name="description" cols="30" rows="10">{{row[2]}}</textarea></td>
+                </tr>
+                <tr>
+                    <td><p>Translated Text</p></td>
+                    <td><textarea id="translated_text" name="translated_text" cols="30" readonly>{{row[3]}}</textarea></td>
+                </tr>
+                <tr>
+                    <td><p>Location</p></td>
+                    <td><input type="text" size="30" id="location" name="location" value="{{row[1]}}"></td>
+                </tr>
+            </tbody>
+    </table>
+    <input type="hidden" name="uuid" id ="uuid" value="{{row[0]}}">
+    {% set number = row[0] | int %}
+    <input type="submit" class="btn btn-success" value="Save + Next"><br/><br/>
+    <a href="/PPM-single?uuid={{number-1}}">previous</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="/PPM-single?uuid={{number+1}}">next</a>
+</form>
+</div>
+<div class="col">
+    <div class="row">
+        <img src="{{row[14]}}"/>
+    </div>
+    <div class="row">
+        <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSch-vsXKhBuovH9yjrvxVwg2527oqVonvaq8tT_oMs6vSwxjQ/viewform?embedded=true" width="640" height="651" frameborder="0" marginheight="0" marginwidth="0">Google Form</iframe>
+    </div>
+</div>
+</div>
+{% endfor %}
+<div class="row">
+    <p> If you want to delete an entry, <a href="https://forms.gle/2Vcf1sCVfxgJEBcu9" target="_blank">fill out this form.</a> </p>
+</div>
+{% endif %}
+{% if session['PPPlogged_in'] %}
+<div class="row">
+<button type="button" class="btn btn-outline-success" id="addElement">Add entry</button>
+</div>
+</div>
+<div id="newentries"></div>
+{% endif %}
+<script type="text/javascript">
+    $('[id^="button1_"]').on('click', function() {
+        var newid = '#editModal' + $(this).attr('id');
+        $(newid).modal("show");
+    });
+    $('#addElement').on('click', function() {
+        var id = 'new' + Math.random().toString().substr(2, 9);
+        $("#newentries").append( '<div class="modal fade" id="newmodal" tabindex="-1" role="dialog" aria-labelledby="editModal" aria-hidden="false">'
+  +'<div class="modal-dialog" role="document">'
+    +'<div class="modal-content">'
+      +'<div class="modal-header">'
+        +'<h5 class="modal-title" id="editModal">New entry</h5>'
+        +'<button type="button" class="close" data-dismiss="modal" aria-label="Close">'
+          +'<span aria-hidden="true">&times;</span>'
+      +'</button>'
+  +'</div>'
+  +'<form id="inputform" action="/update-ppm-edit" method="POST">'
+  +'<div class="modal-body">'
+        +'<table class="table">'
+            +'<tbody>'
+                +'<tr>'
+                    +'<td><p>Unique ID (uuid)</p></td>'
+                    +'<td>'+id+'</td>'
+                +'</tr>'
+                +'<tr>'
+                    +'<td><p>Region</p></td>'
+                    +'<td><input type="text" size="2" id="region" name="region"></td>'
+                +'</tr>'
+                +'<tr>'
+                    +'<td><p>Insula</p></td>'
+                    +'<td><input type="text" size="2" id="insula" name="insula"></td>'
+                +'</tr>'
+                +'<tr>'
+                    +'<td><p>Doorway</p></td>'
+                    +'<td><input type="text" size="2" id="doorway" name="doorway"></td>'
+                +'</tr>'
+                +'<tr>'
+                    +'<td><p>Doorways</p></td>'
+                    +'<td><input type="text" size="2" id="doorways" name="doorways"></td>'
+                +'</tr>'
+                +'<tr>'
+                    +'<td><p>Room</p></td>'
+                    +'<td><input type="text" size="2" id="room" name="room"></td>'
+                +'</tr>'
+                +'<tr>'
+                    +'<td><p>Volume</p></td>'
+                    +'<td><input type="text" size="2" id="volume" name="volume"></td>'
+                +'</tr>'
+                +'<tr>'
+                    +'<td><p>Page</p></td>'
+                    +'<td><input type="text" size="2" id="page" name="page"></td>'
+                +'</tr>'
+                +'<tr>'
+                    +'<td><p>Caption</p></td>'
+                    +'<td><input type="text" size="2" id="caption" name="caption"></td>'
+                +'</tr>'
+                +'<tr>'
+                    +'<td><p>Image path (contains volume, PDF page, and number on page)</p></td>'
+                    +'<td><input type="text" size="30" id="image_path" name="image_path"></td>'
+                +'</tr>'
+                +'<tr>'
+                    +'<td><p>Location</p></td>'
+                    +'<td><input type="text" size="30" id="location" name="location"></td>'
+                +'</tr>'
+                +'<tr>'
+                    +'<td><p>Description (Italian)</p></td>'
+                    +'<td><textarea id="description" name="description" cols="30" rows="5"></textarea></td>'
+                +'</tr>'
+                // +'<tr>'
+                //     +'<td><p>Translated Text</p></td>'
+                //     +'<td><textarea id="translated_text" name="translated_text" cols="30" rows="5"></textarea></td>'
+                // +'</tr>'
+            +'</tbody>'
+        +'</table>'
+        +'<input type="hidden" name="uuid" id ="uuid" value="'+id+'">'
++'</div>'
++'<div class="modal-footer">'
+    +'<input type="submit" class="btn btn-success" value="Save">'
++'</form>'
++'</div>'
++'</div>'
++'</div>' );
+        $('#newmodal').modal("show");
+    });
+</script>
+</body>
+
+</html>

@@ -18,6 +18,7 @@ import glob
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 from markupsafe import escape
+import requests
 
 # === Setup and Authentication ===
 
@@ -28,6 +29,7 @@ sentry_sdk.init(
     traces_sample_rate=1.0
 )
 
+# Set up Flask
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "ShuJAxtrE8tO5ZT"
 
@@ -349,6 +351,7 @@ def showAssociated():
             totpinp.append(all0)
             filename = str(all0[0][1]) + ".jpg"
             if not os.path.exists("static/images/"+filename):
+                # Download thumbnail from Box into temporary images folder (emptied once a week)
                 try:
                     thumbnail = box_client.file(all0[0][1]).get_thumbnail(extension='jpg', min_width=200)
                 except boxsdk.BoxAPIException as exception:
@@ -694,6 +697,9 @@ def updatePPPEdit():
         if k == "room":
             pppQueryL = "UPDATE PPP SET `Room` = '" + vrep + "' WHERE `uuid` = '" + sep + "';"
             pppCur.execute(pppQueryL)
+        if k == "volume":
+            pppQueryM = "UPDATE PPP SET `volume` = '" + vrep + "' WHERE `uuid` = '" + sep + "';"
+            pppCur.execute(pppQueryM)
     mysql.connection.commit()
     pppCur.close()
 
@@ -705,6 +711,196 @@ def updatePPPEdit():
         nextidint = int(sep) + 1
         nextid = str(nextidint)
         return redirect('/PPP-single?uuid='+nextid)
+
+# === Separate PPM single item update page ===
+
+@app.route("/PPM-single-search", methods=['POST', 'GET']) 
+def PPMSingleSearch():
+    if session.get('PPPlogged_in') and session["PPPlogged_in"]:
+        if (request.form.get('region')):
+            region = request.form['region']
+        else:
+            region = ""
+        if (request.form.get('insula')):
+            insula = request.form['insula']
+        else:
+            insula = ""
+        if (request.form.get('property')):
+            prop = request.form['property']
+        else:
+            prop = ""
+        if (request.form.get('room')):
+            room = request.form['room']
+        else:
+            room = ""
+        if room != "" or prop != "" or insula != "" or region != "":
+            ppmCur = mysql.connection.cursor()
+            ppmQuery = "SELECT id, description, image_path FROM PPM WHERE region LIKE %s AND insula LIKE %s AND doorway LIKE %s AND room LIKE %s ORDER BY `image_path` ASC;"
+            loc = []
+            if region != "":
+                loc.append(toRoman(region))
+            else:
+                loc.append("%")
+            if insula != "":
+                if insula[0] == "0":
+                    insula = insula.replace("0","")
+                loc.append(insula)
+            else:
+                loc.append("%")
+            if prop != "":
+                if prop[0] == "0":
+                    prop = prop.replace("0","")
+                loc.append(prop)
+            else:
+                loc.append("%")
+            if room != "":
+                if room[0] == "0":
+                    room = room.replace("0","")
+                loc.append(room)
+            else:
+                loc.append("%")
+
+            ppmCur.execute(ppmQuery, loc)
+            dataTuple = ppmCur.fetchall()
+            ppmCur.close()
+            newdata = []
+            for d in dataTuple:
+                d = list(d)
+                imgloc = d[2].split("_")
+                for i in imgloc:
+                    d.append(i)
+                newdata.append(d)
+        else:
+            newdata = "none"
+
+        return render_template('PPM-single-search.html', dbdata = newdata, region= region,
+                                insula = insula, prop = prop, room = room)
+
+    else:
+        error= "This page is only accessible by logging in."
+        return render_template('PPM-single-search.html')
+
+# Edit one PPM at a time. URL parameter can be PPM ID or UUID
+@app.route("/PPM-single") 
+def showPPMSingle():
+    if session.get('PPPlogged_in') and session["PPPlogged_in"]:
+
+        error = ""
+        ppmCur = mysql.connection.cursor()
+        if (request.args.get('uuid')):
+            ppmQuery = "SELECT id, location, description, translated_text, image_path, region, insula, doorway, doorways, room, other, volume, page, caption FROM PPM WHERE `id` = '"+str(request.args['uuid'])+"';"
+            try:
+                ppmCur.execute(ppmQuery)
+                data = ppmCur.fetchall()
+            except Exception as exception:
+                data = 'error'
+                error= "You searched for Unique ID "+request.args['uuid']+". That doesn't exist - please add an entry or try again."
+            if len(data) < 1:
+                data = 'error'
+                error= "You searched for Unique ID "+request.args['uuid']+". That doesn't exist - please add an entry or try again."
+
+        elif (request.args.get('location')):
+            ppmQuery = "SELECT id, location, description, translated_text, image_path, region, insula, doorway, doorways, room, other, volume, page, caption FROM PPM WHERE `location` = '"+str(request.args['location'])+"';"
+            try:
+                ppmCur.execute(ppmQuery)
+                data = ppmCur.fetchall()
+            except Exception:
+                data = 'error'
+                error= "You searched for PPM location "+request.args['id']+". That doesn't exist - please add an entry or try again."
+            if len(data) < 1:
+                data = 'error'
+                error= "You searched for PPM location "+request.args['id']+". That doesn't exist - please add an entry or try again."
+        else:
+            data = 'error'
+            error = "Please put a query in the URL using the format <a href='https://workspace.p-lod.umasscreate.net/PPM-single?uuid='>https://workspace.p-lod.umasscreate.net/PPM-single?uuid=</a> or <a href='https://workspace.p-lod.umasscreate.net/PPM-single?location='>https://workspace.p-lod.umasscreate.net/PPM-single?location=</a>."
+        ppmCur.close()
+
+
+        if data != "error":
+            newdata = []
+            for d in data:
+                d = list(d)
+                base_url = "http://umassamherst.lunaimaging.com/luna/servlet/as/search?"
+                #params = ["q=filename="+str(d[4]), "lc=umass~14~14"]
+                params = ["q=filename=image58934.jpg", "lc=umass~14~14"]
+                requesta = requests.get(base_url+"&".join(params))
+                result = requesta.json()
+                if len(result['results']) > 0:
+                    d.append(result['results'][0]['urlSize2'])
+                else:
+                    d.append("")
+                imgloc = d[4].split("_")
+                for i in imgloc:
+                    d.append(i)
+                newdata.append(d)
+            data = newdata
+
+        return render_template('PPM-single.html', dbdata = data, error=error)
+
+    else:
+        error= "This page is only accessible by logging in."
+        return render_template('PPM-single.html', dbdata="", error=error)
+
+# Add or edit PPM entry in database
+@app.route('/update-ppm-edit', methods=['POST'])
+def updatePPMEdit():
+    ppmCur = mysql.connection.cursor()
+    dictargs = request.form.to_dict()
+    date = datetime.now().strftime("%Y-%m-%d")
+    sep = dictargs['uuid']
+    for k, v in dictargs.items():
+        ppmQuery = "INSERT INTO PPM(`id`) SELECT * FROM ( SELECT '" + sep + "' ) AS tmp WHERE NOT EXISTS ( SELECT 1 FROM PPM WHERE `id` = '" + sep + "' ) LIMIT 1;"
+        ppmCur.execute(ppmQuery)
+        mysql.connection.commit()
+        vrep = v.replace('\n', ' ').replace('\r', ' ').replace('\'', "\\'")
+        if k == "translated_text":
+            ppmQueryA = "UPDATE PPM SET `translated_text` = '" + vrep + "' WHERE `id` = '" + sep + "';"
+            ppmCur.execute(ppmQueryA)
+        if k == "location":
+            ppmQueryB = "UPDATE PPM SET `location` = '" + vrep + "' WHERE `id` = '" + sep + "';"
+            ppmCur.execute(ppmQueryB)
+        if k == "other":
+            ppmQueryC = "UPDATE PPM SET `material` = '" + vrep + "' WHERE `id` = '" + sep + "';"
+            ppmCur.execute(ppmQueryC)
+        if k == "description":
+            ppmQueryD = "UPDATE PPM SET `description` = '" + vrep + "' WHERE `id` = '" + sep + "';"
+            ppmCur.execute(ppmQueryD)
+        if k == "doorways":
+            ppmQueryE = "UPDATE PPM SET `doorways` = '" + vrep + "' WHERE `id` = '" + sep + "';"
+            ppmCur.execute(ppmQueryE)
+        if k == "image_path":
+            ppmQueryF = "UPDATE PPM SET `image_path` = '" + vrep + "' WHERE `id` = '" + sep + "';"
+            ppmCur.execute(ppmQueryF)
+        if k == "page":
+            ppmQueryG = "UPDATE PPM SET `page` = '" + vrep + "' WHERE `id` = '" + sep + "';"
+            ppmCur.execute(ppmQueryG)
+        if k == "caption":
+            ppmQueryH = "UPDATE PPM SET `caption` = '" + vrep + "' WHERE `id` = '" + sep + "';"
+            ppmCur.execute(ppmQueryH)
+        if k == "region":
+            ppmQueryI = "UPDATE PPM SET `region` = '" + vrep + "' WHERE `id` = '" + sep + "';"
+            ppmCur.execute(ppmQueryI)
+        if k == "insula":
+            ppmQueryJ = "UPDATE PPM SET `insula` = '" + vrep + "' WHERE `id` = '" + sep + "';"
+            ppmCur.execute(ppmQueryJ)
+        if k == "doorway":
+            ppmQueryK = "UPDATE PPM SET `doorway` = '" + vrep + "' WHERE `id` = '" + sep + "';"
+            ppmCur.execute(ppmQueryK)
+        if k == "room":
+            ppmQueryL = "UPDATE PPM SET `room` = '" + vrep + "' WHERE `id` = '" + sep + "';"
+            ppmCur.execute(ppmQueryL)
+    mysql.connection.commit()
+    ppmCur.close()
+
+    # When new entry added, redirect back to page asking you to add parameters
+    if sep.startswith('new'):
+        return redirect('/PPM-single')
+    # Otherwise, "next" button leads user to next uuid numerically
+    else:
+        nextidint = int(sep) + 1
+        nextid = str(nextidint)
+        return redirect('/PPM-single?uuid='+nextid)
+
 
 # Run Flask app
 if __name__ == "__main__":

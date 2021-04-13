@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>PPM</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/bootstrap-table@1.17.1/dist/bootstrap-table.min.css">
+    <script src="https://unpkg.com/bootstrap-table@1.17.1/dist/bootstrap-table.min.js"></script>
+    <script src="{{ url_for('static', filename='js/store.everything.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/jquery.resizableColumns.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap-table-master/src/extensions/resizable/bootstrap-table-resizable.js') }}"></script>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="header">
+            <p class="lead">PPM</p>
+        </div>
+        <div class="row">
+            <p style="color:red;">{{error|safe}}</p>
+        </div>
+{% if not session['PPPlogged_in'] %}
+<div class="row">
+    <form action="/PPP-login" method="POST">
+        <label for="username"> Username </label>
+        <input class="form-control" name="username" id="username" required>
+        <br/>
+        <label for="password"> Password </label>
+        <input type="password" class="form-control" name="password" id="password" required>
+        <br/>
+        <input type="submit" class="btn btn-primary" value="Log in">
+    </form>
+</div>
+{% else %}
+<div class="row">
+    <form action="/PPM-single-search" method="POST">
+        <label for="region"> Region </label>
+        <input name="region" id="region" type="number" min=1 max=9 style="width:2.5em;" value= {{ region }} >
+        <label for="insula">, Insula </label>
+        <input name="insula" id="insula" style="width:2.5em;" value= {{ insula }}>
+        <label for="property">, Property</label>
+        <input name="property" id="property" style="width:2.5em;" value= {{ prop }} >
+        <label for="room">, Room</label>
+        <input name="room" id="room" style="width:2.5em;" value= {{ room }} >
+        <input type="submit" class="btn btn-outline-primary" value="Search">
+    </form>
+</div>
+{% endif %}
+{% if dbdata != "none" %}
+<div class="row">
+<table class="table">
+    <tbody>
+        <tr>
+            <td>Unique ID (uuid) </td>
+            <td>Brief Description</td>
+            <td>PDF location</td>
+        </tr>
+        {% for row in dbdata %}
+        <tr>
+            <td><a href="/PPM-single?uuid={{row[0]}}">{{row[0]}}</a></td>
+            <td>{{row[1][:60]}}...</td>
+            <td>Volume {{row[3][3:]}} page {{row[5]}}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endif %}
+</body>
+
+</html>
