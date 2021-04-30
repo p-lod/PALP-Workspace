@@ -830,6 +830,8 @@ def showPPMSingle():
                 else:
                     d.append("")
                 imgloc = d[4].split("_")
+                if len(imgloc) < 4:
+                    d.append("0")
                 for i in imgloc:
                     d.append(i)
                 newdata.append(d)
@@ -889,6 +891,9 @@ def updatePPMEdit():
         if k == "room":
             ppmQueryL = "UPDATE PPM SET `room` = '" + vrep + "' WHERE `id` = '" + sep + "';"
             ppmCur.execute(ppmQueryL)
+        if k == "volume":
+            ppmQueryM = "UPDATE PPM SET `volume` = '" + vrep + "' WHERE `id` = '" + sep + "';"
+            ppmCur.execute(ppmQueryM)
     mysql.connection.commit()
     ppmCur.close()
 
