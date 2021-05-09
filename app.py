@@ -10,18 +10,14 @@ import re
 from datetime import datetime
 import os
 import glob
-import sentry_sdk
-from sentry_sdk.integrations.flask import FlaskIntegration
 from markupsafe import escape
-
-# Using sentry to log errors
-sentry_sdk.init(
-    dsn="https://5ebc9319ed40454993186c71e8c35553@o493026.ingest.sentry.io/5561383",
-    integrations=[FlaskIntegration()],
-    traces_sample_rate=1.0
-)
+from types import SimpleNamespace
+import requests
+from langdetect import detect
+from wikidata.client import Client
 
 app = Flask(__name__)
+client = Client()
 app.config["SECRET_KEY"] = "ShuJAxtrE8tO5ZT"
 
 # MySQL configurations
@@ -36,7 +32,6 @@ mysql = MySQL(app)
 #Google Translate and Sheets credentials
 tr_credentials = service_account.Credentials.from_service_account_file("My Project-1f2512d178cb.json")
 translate_client = translate.Client(credentials=tr_credentials)
-
 scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
 scoped_gs = tr_credentials.with_scopes(scopes)
 sheets_client = build('sheets', 'v4', credentials=scoped_gs)
@@ -175,6 +170,121 @@ def pullPre():
 			for n in newarcs:
 				v['ppps'].append(n[0])
 
+@app.route("/search", methods=['GET'])
+def search():
+	search_term = request.args.get("search")
+	search_data = getSearchTerms()
+	syns = getAllSynonyms()
+	term_desc = ""
+	wiki_desc = ""
+	getty = "-"
+	wikiID = "-"
+	imgUrl = ""
+	otherImgUrl = ""
+	for syn in syns:
+		if search_term == syn:
+			search_term = getTermForSyn(syn, search_data)
+	if search_term == "term not found":
+		return render_template('index.html', arc="", error=search_term)
+	else:
+		for key in search_data:
+			if search_term == key:
+				getty = search_data[key]["getty"]
+				wikiID = search_data[key]["wiki"]
+				otherImgUrl = search_data[key]["otherImageUrl"]
+				if getty != "-":
+					try:
+						response = requests.get(getty.replace("page/", "", -1) + ".json")
+						data = json.loads(response.content)
+						value = ""
+						for binding in data["results"]["bindings"]:
+							binding_value = binding["Subject"]["value"]
+							if binding_value.startswith("http://vocab.getty.edu/aat/scopeNote/"):
+								noteData = json.loads(requests.get(binding_value + ".json").content)
+								desc = noteData[binding_value]["http://www.w3.org/1999/02/22-rdf-syntax-ns#value"][0]["value"]
+								if value == "":
+									if detect(desc) == 'en':
+										value = desc
+						term_desc = value
+					except Exception as err:
+						print(f'Error: {err}')
+				if wikiID != "-":
+					try:
+						entity = client.get(wikiID, load=True)
+						wiki_desc = entity.description
+						image_prop = client.get('P18')
+						image = entity[image_prop]
+						imgUrl = image.image_url
+					except Exception as err:
+						imgUrl = ""
+						print(f'Error: {err}')
+	synsForTerm = search_data[search_term]['synonyms'].split(",")
+	num_syns = len(synsForTerm)
+	if synsForTerm == [""]:
+		num_syns = 0
+		synsForTerm = []
+	return render_template("/search_result.html", num_syns=num_syns, synonyms=synsForTerm, term=search_term, gettyUrl=getty, wikiUrl=('https://www.wikidata.org/wiki/' + wikiID), description=term_desc, wikiData=wiki_desc, img_url=imgUrl, other_img_url=otherImgUrl, other_desc=search_data[search_term]['otherDesc'], other_url=search_data[search_term]['otherUrl'] )
+
+def getSearchTerms():
+	search_doc_id= "1kzWEh3v5sEJYARxYVikHdinfKIxbstYhP4HjFTh_dw4"
+	res = sheet.values().get(spreadsheetId = search_doc_id, range="Old Vocabulary (v4) with links!A2:H").execute()
+	terms = {}
+	for row in res['values']:
+		terms[row[0]] = {'getty': row[2].replace("\"", "", -1), 'wiki': row[1], 'otherDesc': row[3], 'otherImageUrl': row[4], 'otherUrl': row[5], 'synonyms': row[6], 'category': row[7]}
+	return terms
+
+def getTermForSyn(syn, terms):
+	for key in terms:
+		syns = terms[key]['synonyms']
+		if syns != "":
+			if "," in syns:
+				for synonym in syns.split(","):
+					if synonym == syn:
+						return key
+			else:
+				if syns == syn:
+					return key
+	return "term not found"
+
+def getAllTerms():
+	search_doc_id= "1kzWEh3v5sEJYARxYVikHdinfKIxbstYhP4HjFTh_dw4"
+	res = sheet.values().get(spreadsheetId = search_doc_id, range="Old Vocabulary (v4) with links!A2:H").execute()
+	terms = {}
+	for row in res['values']:
+		terms[row[0]] = {'getty': row[2].replace("\"", "", -1), 'wiki': row[1], 'otherDesc': row[3], 'otherImageUrl': row[4], 'otherUrl': row[5], 'synonyms': row[6], 'category': row[7]}
+	search_d = terms
+	all_terms = []
+	for term in search_d:
+		all_terms.append(term)
+		synString = search_d[term]['synonyms']
+		if synString != "":
+			if "," in synString:
+				synonyms = synString.split(",")
+				for syn in synonyms:
+					all_terms.append(syn)
+			else:
+				all_terms.append(synString)
+	return all_terms
+
+def getAllSynonyms():
+	search_doc_id= "1kzWEh3v5sEJYARxYVikHdinfKIxbstYhP4HjFTh_dw4"
+	res = sheet.values().get(spreadsheetId = search_doc_id, range="Old Vocabulary (v4) with links!A2:H").execute()
+	terms = {}
+	for row in res['values']:
+		terms[row[0]] = {'getty': row[2].replace("\"", "", -1), 'wiki': row[1], 'otherDesc': row[3], 'otherImageUrl': row[4], 'otherUrl': row[5], 'synonyms': row[6], 'category': row[7]}
+	search_d = terms
+	syns = []
+	for term in search_d:
+		synString = search_d[term]['synonyms']
+		if synString != "":
+			if "," in synString:
+				synonyms = synString.split(",")
+				for syn in synonyms:
+					syns.append(syn)
+			else:
+				syns.append(synString)
+	return syns
+	
 @app.route('/init', methods=['POST']) #Form submitted from home page
 def init():
 	session['carryoverPPP'] = ""
@@ -249,7 +359,7 @@ def chooseARCs():
 		pullPre()
 		return render_template("chooseARCs.html", arcs = session['ARClist'], 
 			                   region=session['region'], insula=session['insula'], 
-			                   property=session['property'], room=session['room'])
+			                   property=session['property'], room=session['room'], allTerms=getAllTerms())
 	else:
 		error= "Sorry, this page is only accessible by logging in."
 		return render_template('index.html', arc="", error=error)
@@ -320,7 +430,7 @@ def showPPP():
 
 		return render_template('PPP.html',
 			catextppp=session['carryoverPPP'], dbdata = dataplustrans, indices = indices, arc=session['current'],
-			region=session['region'], insula=session['insula'], property=session['property'], room=session['room'])
+			region=session['region'], insula=session['insula'], property=session['property'], room=session['room'], allTerms=getAllTerms())
 
 	else:
 		error= "Sorry, this page is only accessible by logging in."
@@ -423,7 +533,7 @@ def showAssociated():
 			assocCur.close()
 		return render_template('associated.html', arc=session['current'],
 			region=session['region'], insula=session['insula'], property=session['property'], room=session['room'],
-			totpinp=totpinp, totppm=totppm)
+			totpinp=totpinp, totppm=totppm, allTerms=getAllTerms())
 
 	else:
 		error= "Sorry, this page is only accessible by logging in."
@@ -496,7 +606,7 @@ def showDescs():
 		return render_template('descs.html',
 			carryoverPPP=session['carryoverPPP'], carryoverPPM = carryoverppm, carryoverPinP = carryoverpinp,
 			region=session['region'], insula=session['insula'], property=session['property'], room=session['room'], gdoc=gdoc, 
-			arc = current)
+			arc = current, allTerms=getAllTerms())
 	else:
 		error= "Sorry, this page is only accessible by logging in."
 		return render_template('index.html', arc="", error=error)
@@ -533,7 +643,7 @@ def carryover_button():
 
 @app.route('/help') #Help page - the info here is in the HTML
 def help():
-	return render_template('help.html')
+	return render_template('help.html', allTerms=getAllTerms())
 
 @app.route('/noart')
 def noart():
@@ -694,6 +804,62 @@ def PPPlogin():
 	else:
 		error = 'Sorry, wrong password!'
 		return render_template('PPP-single.html', dbdata="", error=error)
+
+@app.route('/edit_terms', methods=['GET','POST'])
+def edit_terms():
+	return render_template('edit_terms.html', allTerms=getAllTerms(), dbdata="", error="None")
+
+@app.route('/categories', methods=['GET'])
+def categories():
+	search_data = getSearchTerms()
+	cats = getAllCategories()
+	categories = []
+	for cat in cats:
+		for term in search_data:
+			if search_data[term]['category'] == cat and search_data[term]['wiki'] != "-":
+				try:
+					entity = client.get(search_data[term]['wiki'], load=True)
+					image_prop = client.get('P18')
+					image = entity[image_prop]
+					if image.image_url != "":
+						categories.append({"key": cat, "img_url": image.image_url})
+						break
+				except Exception as err:
+					print(err)
+	return render_template('categories.html', categories=categories, allTerms=getAllTerms(), dbdata="", error="None")
+
+
+def getAllCategories():
+	search_doc_id= "1kzWEh3v5sEJYARxYVikHdinfKIxbstYhP4HjFTh_dw4"
+	res = sheet.values().get(spreadsheetId = search_doc_id, range="Old Vocabulary (v4) with links!A2:H").execute()
+	terms = {}
+	for row in res['values']:
+		terms[row[0]] = {'getty': row[2].replace("\"", "", -1), 'wiki': row[1], 'otherDesc': row[3], 'otherImageUrl': row[4], 'otherUrl': row[5], 'synonyms': row[6], 'category': row[7]}
+	search_d = terms
+	cats = []
+	for term in search_d:
+		cat = search_d[term]['category']
+		if cat != "" and cat not in cats:
+			cats.append(cat)
+	return cats
+
+@app.route('/img_search', methods=['GET','POST'])
+def img_search():
+	category = request.args.get("category")
+	search_data = getSearchTerms()
+	imgUrls = []
+	for key in search_data:
+		if search_data[key]["category"] == category:
+			wikiID = search_data[key]["wiki"]
+			if wikiID != "-":
+				try:
+					entity = client.get(wikiID, load=True)
+					image_prop = client.get('P18')
+					image = entity[image_prop]
+					imgUrls.append({"key": key, "img_url": image.image_url})
+				except Exception as err:
+					imgUrls.append({"key": key, "img_url":  "-" if search_data[key]["otherImageUrl"] == "" else search_data[key]["otherImageUrl"]})
+	return render_template('image_search.html', img_urls=imgUrls, allTerms=getAllTerms(), dbdata="", error="None")
 
 if __name__ == "__main__":
 	app.run()
