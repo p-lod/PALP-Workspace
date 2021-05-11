@@ -1,3 +1,7 @@
+"""
+Flask web application created to help researchers for the PALP project connect different sources of data to each other.
+[Github repository](https://github.com/p-lod/PALP-Workspace)
+"""
 from __future__ import print_function
 from flask import Flask, render_template, session, json, request, redirect, flash
 from flask_mysqldb import MySQL
