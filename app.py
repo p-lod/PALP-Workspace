@@ -274,6 +274,20 @@ def getAllSynonyms():
 # === Forms ===
 
 # Log-in form. Pulls credentials from user.cfg
+@app.route("/login", methods=['POST'])
+def login():
+    error = ""
+    with open('user.cfg', 'r') as user_cfg:
+        user_lines = user_cfg.read().splitlines()
+        username = user_lines[0]
+        password = user_lines[1]
+    if request.form['password'] == password and request.form['username'] == username:
+        session['logged_in'] = True
+    else:
+        error = 'Sorry, wrong password!'
+    return render_template('index.html', error=error)
+
+# Form submitted from home page to select location
 @app.route('/init', methods=['POST'])  # Form submitted from home page
 def init():
     session['carryoverPPP'] = ""
