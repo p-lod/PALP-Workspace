@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>{{ term }} - PALP Result</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+        integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+        crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+        integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+        crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+
+    <div class="container">
+        <div style="justify-content: center; justify-self: center; align-items: center; align-self: center;">
+            <h1 style="text-align: center;"> PALP Term: {{ term }}</h1>
+                <div style="justify-content:center;display: flex;flex-direction: row;">
+                    {% if num_syns > 0 %}
+                        <p>Synonyms: <p> 
+                        {% for syn in synonyms %}
+                            {% if loop.index == num_syns %}
+                                <p style="margin-left:5px;">{{ syn }}</p>
+                            {% else %}
+                                <p style="margin-left:5px;">{{ syn }}, </p>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif%}
+                </div>
+            <div class="row" style="margin: 10px 0px;">
+                {% if gettyUrl != "-" %}
+                <div class="col">
+                    <div>
+                        Getty Description: <p>{{ description }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                {% if wikiUrl != "https://www.wikidata.org/wiki/-" %}
+                <div class="col">
+                    <div>
+                        Wiki Description: <p>{{ wikiData }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                {% if other_desc != "" %}
+                <div class="col">
+                    <div>
+                        Other Description: <p>{{ other_desc }}</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="row">
+                {% if img_url != "" %}
+                <div class="col" style="margin: 10px 0px;">
+                    <img src="{{ img_url }}" style="display: block; margin-left: auto; margin-right: auto" width="400"
+                        height="500"></img>
+                </div>
+                {% endif %}
+                {% if other_img_url != "" %}
+                <div class="col" style="margin: 10px 0px;">
+                    <img src="{{ other_img_url }}" style="display: block; margin-left: auto; margin-right: auto" width="400"
+                        height="500"></img>
+                </div>
+                {% endif %}
+            </div>
+            <div class="row">
+                {% if gettyUrl != "-" %}
+                <div class="col" style="margin: 10px 0px;">
+                    <div>
+                        <p style="text-align: center;">Getty Link:
+                            <a href="{{ gettyUrl }}">{{ gettyUrl }}</a>
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
+                {% if other_url != "" %}
+                <div class="col" style="margin: 10px 0px;">
+                    <div>
+                        <p style="text-align: center;">Other Link:
+                            <a href="{{ other_url }}">{{ other_url }}</a>
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
+                {% if wikiUrl != "https://www.wikidata.org/wiki/-" %}
+                <div class="col" style="margin: 10px 0px;">
+                    <div>
+                        <p style="text-align: center;">Wiki Link:
+                            <a href="{{ wikiUrl }}">{{ wikiUrl }}</a>
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% if wikiUrl == "https://www.wikidata.org/wiki/-" and gettyUrl == "-" %}
+                <div class="row" style="margin: 10px 0px; justify-content: center;">
+                    <div>
+                        <p style="text-align: center;">No data found for term: {{ term }}, please check your spelling or
+                            contact Eric Poehler at <a
+                                href="epoehler@classics.umass.edu">epoehler@classics.umass.edu</a> for administative
+                            questions.</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>

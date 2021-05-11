@@ -1,22 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
- 
+
 <head>
     <title>Choose ARCs - PALP Workspace</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+        integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+        crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+        integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+        crossorigin="anonymous"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
- 
+
 <body>
- 
+
     <div class="container">
         <div class="header">
-            <h1> PALP Workspace</h1>
-            <p class="lead">Working on: Region {{ region }}, Insula {{ insula }}, Property {{ property }}, Room {{ room }}</p>
-                        <nav>
+            <div style="justify-content: space-between;display: flex;flex-direction: row;">
+                <h1> PALP Workspace</h1>
+                <form autocomplete="off" action="/search" method="GET" target="_blank">
+                    <div class="autocomplete" style="width:300px;"><input id="search" name="search"
+                            class="search-bar" type="text" placeholder="Search Terms..." /></div>
+                    <button class="btn btn-primary" type="submit" target="_blank">Go</button>
+                </form>
+            </div>
+            <p class="lead">Working on: Region {{ region }}, Insula {{ insula }}, Property {{ property }}, Room {{ room
+                }}</p>
+            <nav>
                 <ul class="nav nav-tabs">
                     <li class="nav-item">
                         <a class="nav-link active" href="/ARCs">Choose ARC</a>
@@ -31,16 +46,23 @@
                         <a class="nav-link" href="/descriptions">Description Sheet</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" target="_blank" href="https://arcg.is/ivHP0">GIS Map <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-box-arrow-up-right" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-  <path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/>
-  <path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/>
-</svg></a>
+                        <a class="nav-link" target="_blank" href="https://arcg.is/ivHP0">GIS Map <svg width="1em"
+                                height="1em" viewBox="0 0 16 16" class="bi bi-box-arrow-up-right" fill="currentColor"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path fill-rule="evenodd"
+                                    d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z" />
+                                <path fill-rule="evenodd"
+                                    d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z" />
+                            </svg></a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/help">Help</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/">Change location</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/categories">Image Search</a>
                     </li>
                 </ul>
             </nav>
@@ -58,28 +80,130 @@
                 </thead>
                 <tbody>
                     {% for arcname, details in arcs.items() %}
-                        <tr>
-                            <td> {{arcname}} </td>
-                            <td> {{details['is_art']}} </td>
-                            <td> {{details['is_plaster']}} </td>
-                            <td> {{details['notes']}} </td>
-                            <td> {% if details['done'] %} 
-                                <a href="/makedoc/{{arcname}}" class="btn btn-outline-success">Marked as done</a>
-                                {% elif details['noart'] %} 
-                                <a href="/makedoc/{{arcname}}" class="btn btn-outline-danger">Marked as having no art</a>
-                                {% elif details['unknown'] %} 
-                                <a href="/makedoc/{{arcname}}" class="btn btn-outline-danger">Marked as unknown</a>
-                                {% elif "http" in details['link'] %}
-                                <a href="/makedoc/{{arcname}}" class="btn btn-outline-secondary">Continue working</a>
-                                {% else %}
-                                <a href="/makedoc/{{arcname}}" class="btn btn-outline-primary">Start working</a>
-                                {% endif %}
-                            </td>
-                        </tr>
+                    <tr>
+                        <td> {{arcname}} </td>
+                        <td> {{details['is_art']}} </td>
+                        <td> {{details['is_plaster']}} </td>
+                        <td> {{details['notes']}} </td>
+                        <td> {% if details['done'] %}
+                            <a href="/makedoc/{{arcname}}" class="btn btn-outline-success">Marked as done</a>
+                            {% elif details['noart'] %}
+                            <a href="/makedoc/{{arcname}}" class="btn btn-outline-danger">Marked as having no art</a>
+                            {% elif details['unknown'] %}
+                            <a href="/makedoc/{{arcname}}" class="btn btn-outline-danger">Marked as unknown</a>
+                            {% elif "http" in details['link'] %}
+                            <a href="/makedoc/{{arcname}}" class="btn btn-outline-secondary">Continue working</a>
+                            {% else %}
+                            <a href="/makedoc/{{arcname}}" class="btn btn-outline-primary">Start working</a>
+                            {% endif %}
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
+        <script>
+            function autocomplete(inp, arr) {
+                /*the autocomplete function takes two arguments,
+                the text field element and an array of possible autocompleted values:*/
+                var currentFocus;
+                /*execute a function when someone writes in the text field:*/
+                inp.addEventListener("input", function (e) {
+                    var a, b, i, val = this.value;
+                    /*close any already open lists of autocompleted values*/
+                    closeAllLists();
+                    if (!val) { return false; }
+                    currentFocus = -1;
+                    /*create a DIV element that will contain the items (values):*/
+                    a = document.createElement("DIV");
+                    a.setAttribute("id", this.id + "autocomplete-list");
+                    a.setAttribute("class", "autocomplete-items");
+                    /*append the DIV element as a child of the autocomplete container:*/
+                    this.parentNode.appendChild(a);
+                    /*for each item in the array...*/
+                    for (i = 0; i < arr.length; i++) {
+                        var indexOfFirst = arr[i].toUpperCase().indexOf(val.toUpperCase())
+                        /*check if the item starts with the same letters as the text field value:*/
+                        if (indexOfFirst !== -1) {
+                            /*create a DIV element for each matching element:*/
+                            b = document.createElement("DIV");
+                            /*make the matching letters bold:*/
+                            b.innerHTML = arr[i]
+                            /*insert a input field that will hold the current array item's value:*/
+                            b.innerHTML += "<input type='hidden' value='" + arr[i] + "'>";
+                            /*execute a function when someone clicks on the item value (DIV element):*/
+                            b.addEventListener("click", function (e) {
+                                /*insert the value for the autocomplete text field:*/
+                                inp.value = this.getElementsByTagName("input")[0].value;
+                                /*close the list of autocompleted values,
+                                (or any other open lists of autocompleted values:*/
+                                closeAllLists();
+                            });
+                            a.appendChild(b);
+                        }
+                    }
+                });
+                /*execute a function presses a key on the keyboard:*/
+                inp.addEventListener("keydown", function (e) {
+                    var x = document.getElementById(this.id + "autocomplete-list");
+                    if (x) x = x.getElementsByTagName("div");
+                    if (e.keyCode == 40) {
+                        /*If the arrow DOWN key is pressed,
+                        increase the currentFocus variable:*/
+                        currentFocus++;
+                        /*and and make the current item more visible:*/
+                        addActive(x);
+                    } else if (e.keyCode == 38) { //up
+                        /*If the arrow UP key is pressed,
+                        decrease the currentFocus variable:*/
+                        currentFocus--;
+                        /*and and make the current item more visible:*/
+                        addActive(x);
+                    } else if (e.keyCode == 13) {
+                        /*If the ENTER key is pressed, prevent the form from being submitted,*/
+                        e.preventDefault();
+                        if (currentFocus > -1) {
+                            /*and simulate a click on the "active" item:*/
+                            if (x) x[currentFocus].click();
+                        }
+                    }
+                });
+                function addActive(x) {
+                    /*a function to classify an item as "active":*/
+                    if (!x) return false;
+                    /*start by removing the "active" class on all items:*/
+                    removeActive(x);
+                    if (currentFocus >= x.length) currentFocus = 0;
+                    if (currentFocus < 0) currentFocus = (x.length - 1);
+                    /*add class "autocomplete-active":*/
+                    x[currentFocus].classList.add("autocomplete-active");
+                }
+                function removeActive(x) {
+                    /*a function to remove the "active" class from all autocomplete items:*/
+                    for (var i = 0; i < x.length; i++) {
+                        x[i].classList.remove("autocomplete-active");
+                    }
+                }
+                function closeAllLists(elmnt) {
+                    /*close all autocomplete lists in the document,
+                    except the one passed as an argument:*/
+                    var x = document.getElementsByClassName("autocomplete-items");
+                    for (var i = 0; i < x.length; i++) {
+                        if (elmnt != x[i] && elmnt != inp) {
+                            x[i].parentNode.removeChild(x[i]);
+                        }
+                    }
+                }
+                /*execute a function when someone clicks in the document:*/
+                document.addEventListener("click", function (e) {
+                    closeAllLists(e.target);
+                });
+            }
+            var search_terms = {{ allTerms| tojson | safe }}
+            search_terms.map((term) => { return term })
+            autocomplete(document.getElementById("search"), search_terms);
+        </script>
 </body>
- 
+
 </html>
