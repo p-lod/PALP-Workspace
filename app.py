@@ -50,7 +50,7 @@ scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapi
 scoped_gs = tr_credentials.with_scopes(scopes)
 sheets_client = build('sheets', 'v4', credentials=scoped_gs)
 sheet = sheets_client.spreadsheets()
-tracking_ws = "1F4nXX1QoyV1miaRUop2ctm8snDyov6GNu9aLt9t3a3M" 
+tracking_ws = "1F4nXX1QoyV1miaRUop2ctm8snDyov6GNu9aLt9t3a3M"
 ranges = "Workflow_Tracking!A3:S87078"
 
 drive_client = build('drive', 'v3', credentials=scoped_gs)
@@ -75,24 +75,16 @@ box_client = boxsdk.Client(box_auth)
 # Roman numeral utility. Takes in integer Arabic number to be converted
 # (must be between 1 and 9) and turns it into a string of the Roman numeral.
 def toRoman(data):
-	"""
-	Roman numeral utility
-	:param data: Arabic number to be converted (must be between 1 and 9)
-	:type data: int
-	:returns romreg: Roman numeral
-	:type romreg: str
-
-	"""
-	romans = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"]
-	if data.isnumeric():
-		romin = int(data) - 1
-	else:
-		romin = 0
-	if romin >= 0 and romin < len(romans):
-		romreg = romans[romin]
-	else:
-		romreg = data
-	return romreg
+    romans = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"]
+    if data.isnumeric():
+        romin = int(data) - 1
+    else:
+        romin = 0
+    if romin >= 0 and romin < len(romans):
+        romreg = romans[romin]
+    else:
+        romreg = data
+    return romreg
 
 # Main function to retrieve information from various data sources.
 # Called often at beginning of page load to make sure all information is up to date.
@@ -103,13 +95,13 @@ def pullPre():
     dones = values[18]
     artsDW = values[12]
 
-    for a,v in session['ARClist'].items():
+    for a, v in session['ARClist'].items():
         is_art = "no"
         is_plaster = "no"
         v["pinpimgs"] = []
         v["ppmimgs"] = []
         pinpCur = mysql.connection.cursor()
-        pinpQuery = "SELECT * FROM `PinP_preq` WHERE `ARC`='" + a +"' OR `other_ARC` LIKE '%" + a + "%';"
+        pinpQuery = "SELECT * FROM `PinP_preq` WHERE `ARC`='" + a + "' OR `other_ARC` LIKE '%" + a + "%';"
         pinpCur.execute(pinpQuery)
         pinpdata = pinpCur.fetchall()
         pinpCur.close()
@@ -126,7 +118,7 @@ def pullPre():
             v["notes"] += d[5]
 
         ppmCur = mysql.connection.cursor()
-        ppmQuery = "SELECT * FROM `PPM_preq` WHERE `ARC`='" + a +"' OR `other_ARC` LIKE '%" + a + "%';"
+        ppmQuery = "SELECT * FROM `PPM_preq` WHERE `ARC`='" + a + "' OR `other_ARC` LIKE '%" + a + "%';"
         ppmCur.execute(ppmQuery)
         ppmdata = ppmCur.fetchall()
         ppmCur.close()
@@ -156,7 +148,7 @@ def pullPre():
             v["unknown"] = True
 
         arcCur = mysql.connection.cursor()
-        arcQuery = 'SELECT uuid FROM PPP_desc WHERE ARCs LIKE "%' + a +'%";'
+        arcQuery = 'SELECT uuid FROM PPP_desc WHERE ARCs LIKE "%' + a + '%";'
         arcCur.execute(arcQuery)
         newarcs = arcCur.fetchall()
         v['ppps'] = []
@@ -166,123 +158,123 @@ def pullPre():
 
 @app.route("/search", methods=['GET'])
 def search():
-	search_term = request.args.get("search")
-	search_data = getSearchTerms()
-	syns = getAllSynonyms()
-	term_desc = ""
-	wiki_desc = ""
-	getty = "-"
-	wikiID = "-"
-	imgUrl = ""
-	otherImgUrl = ""
-	for syn in syns:
-		if search_term == syn:
-			search_term = getTermForSyn(syn, search_data)
-	if search_term == "term not found":
-		return render_template('index.html', arc="", error=search_term)
-	else:
-		for key in search_data:
-			if search_term == key:
-				getty = search_data[key]["getty"]
-				wikiID = search_data[key]["wiki"]
-				otherImgUrl = search_data[key]["otherImageUrl"]
-				if getty != "-":
-					try:
-						response = requests.get(getty.replace("page/", "", -1) + ".json")
-						data = json.loads(response.content)
-						value = ""
-						for binding in data["results"]["bindings"]:
-							binding_value = binding["Subject"]["value"]
-							if binding_value.startswith("http://vocab.getty.edu/aat/scopeNote/"):
-								noteData = json.loads(requests.get(binding_value + ".json").content)
-								desc = noteData[binding_value]["http://www.w3.org/1999/02/22-rdf-syntax-ns#value"][0]["value"]
-								if value == "":
-									if detect(desc) == 'en':
-										value = desc
-						term_desc = value
-					except Exception as err:
-						print(f'Error: {err}')
-				if wikiID != "-":
-					try:
-						entity = client.get(wikiID, load=True)
-						wiki_desc = entity.description
-						image_prop = client.get('P18')
-						image = entity[image_prop]
-						imgUrl = image.image_url
-					except Exception as err:
-						imgUrl = ""
-						print(f'Error: {err}')
-	synsForTerm = search_data[search_term]['synonyms'].split(",")
-	num_syns = len(synsForTerm)
-	if synsForTerm == [""]:
-		num_syns = 0
-		synsForTerm = []
-	return render_template("/search_result.html", num_syns=num_syns, synonyms=synsForTerm, term=search_term, gettyUrl=getty, wikiUrl=('https://www.wikidata.org/wiki/' + wikiID), description=term_desc, wikiData=wiki_desc, img_url=imgUrl, other_img_url=otherImgUrl, other_desc=search_data[search_term]['otherDesc'], other_url=search_data[search_term]['otherUrl'] )
+    search_term = request.args.get("search")
+    search_data = getSearchTerms()
+    syns = getAllSynonyms()
+    term_desc = ""
+    wiki_desc = ""
+    getty = "-"
+    wikiID = "-"
+    imgUrl = ""
+    otherImgUrl = ""
+    for syn in syns:
+        if search_term == syn:
+            search_term = getTermForSyn(syn, search_data)
+    if search_term == "term not found":
+        return render_template('index.html', arc="", error=search_term)
+    else:
+        for key in search_data:
+            if search_term == key:
+                getty = search_data[key]["getty"]
+                wikiID = search_data[key]["wiki"]
+                otherImgUrl = search_data[key]["otherImageUrl"]
+                if getty != "-":
+                    try:
+                        response = requests.get(getty.replace("page/", "", -1) + ".json")
+                        data = json.loads(response.content)
+                        value = ""
+                        for binding in data["results"]["bindings"]:
+                            binding_value = binding["Subject"]["value"]
+                            if binding_value.startswith("http://vocab.getty.edu/aat/scopeNote/"):
+                                noteData = json.loads(requests.get(binding_value + ".json").content)
+                                desc = noteData[binding_value]["http://www.w3.org/1999/02/22-rdf-syntax-ns#value"][0]["value"]
+                                if value == "":
+                                    if detect(desc) == 'en':
+                                        value = desc
+                        term_desc = value
+                    except Exception as err:
+                        print(f'Error: {err}')
+                if wikiID != "-":
+                    try:
+                        entity = client.get(wikiID, load=True)
+                        wiki_desc = entity.description
+                        image_prop = client.get('P18')
+                        image = entity[image_prop]
+                        imgUrl = image.image_url
+                    except Exception as err:
+                        imgUrl = ""
+                        print(f'Error: {err}')
+    synsForTerm = search_data[search_term]['synonyms'].split(",")
+    num_syns = len(synsForTerm)
+    if synsForTerm == [""]:
+        num_syns = 0
+        synsForTerm = []
+    return render_template("/search_result.html", num_syns=num_syns, synonyms=synsForTerm, term=search_term, gettyUrl=getty, wikiUrl=('https://www.wikidata.org/wiki/' + wikiID), description=term_desc, wikiData=wiki_desc, img_url=imgUrl, other_img_url=otherImgUrl, other_desc=search_data[search_term]['otherDesc'], other_url=search_data[search_term]['otherUrl'])
 
 def getSearchTerms():
-	search_doc_id= "1kzWEh3v5sEJYARxYVikHdinfKIxbstYhP4HjFTh_dw4"
-	res = sheet.values().get(spreadsheetId = search_doc_id, range="Old Vocabulary (v4) with links!A2:H").execute()
-	terms = {}
-	for row in res['values']:
-		terms[row[0]] = {'getty': row[2].replace("\"", "", -1), 'wiki': row[1], 'otherDesc': row[3], 'otherImageUrl': row[4], 'otherUrl': row[5], 'synonyms': row[6], 'category': row[7]}
-	return terms
+    search_doc_id = "1kzWEh3v5sEJYARxYVikHdinfKIxbstYhP4HjFTh_dw4"
+    res = sheet.values().get(spreadsheetId=search_doc_id, range="Old Vocabulary (v4) with links!A2:H").execute()
+    terms = {}
+    for row in res['values']:
+        terms[row[0]] = {'getty': row[2].replace("\"", "", -1), 'wiki': row[1], 'otherDesc': row[3], 'otherImageUrl': row[4], 'otherUrl': row[5], 'synonyms': row[6], 'category': row[7]}
+    return terms
 
 def getTermForSyn(syn, terms):
-	for key in terms:
-		syns = terms[key]['synonyms']
-		if syns != "":
-			if "," in syns:
-				for synonym in syns.split(","):
-					if synonym == syn:
-						return key
-			else:
-				if syns == syn:
-					return key
-	return "term not found"
+    for key in terms:
+        syns = terms[key]['synonyms']
+        if syns != "":
+            if "," in syns:
+                for synonym in syns.split(","):
+                    if synonym == syn:
+                        return key
+            else:
+                if syns == syn:
+                    return key
+    return "term not found"
 
 def getAllTerms():
-	search_doc_id= "1kzWEh3v5sEJYARxYVikHdinfKIxbstYhP4HjFTh_dw4"
-	res = sheet.values().get(spreadsheetId = search_doc_id, range="Old Vocabulary (v4) with links!A2:H").execute()
-	terms = {}
-	for row in res['values']:
-		terms[row[0]] = {'getty': row[2].replace("\"", "", -1), 'wiki': row[1], 'otherDesc': row[3], 'otherImageUrl': row[4], 'otherUrl': row[5], 'synonyms': row[6], 'category': row[7]}
-	search_d = terms
-	all_terms = []
-	for term in search_d:
-		all_terms.append(term)
-		synString = search_d[term]['synonyms']
-		if synString != "":
-			if "," in synString:
-				synonyms = synString.split(",")
-				for syn in synonyms:
-					all_terms.append(syn)
-			else:
-				all_terms.append(synString)
-	return all_terms
+    search_doc_id = "1kzWEh3v5sEJYARxYVikHdinfKIxbstYhP4HjFTh_dw4"
+    res = sheet.values().get(spreadsheetId=search_doc_id, range="Old Vocabulary (v4) with links!A2:H").execute()
+    terms = {}
+    for row in res['values']:
+        terms[row[0]] = {'getty': row[2].replace("\"", "", -1), 'wiki': row[1], 'otherDesc': row[3], 'otherImageUrl': row[4], 'otherUrl': row[5], 'synonyms': row[6], 'category': row[7]}
+    search_d = terms
+    all_terms = []
+    for term in search_d:
+        all_terms.append(term)
+        synString = search_d[term]['synonyms']
+        if synString != "":
+            if "," in synString:
+                synonyms = synString.split(",")
+                for syn in synonyms:
+                    all_terms.append(syn)
+            else:
+                all_terms.append(synString)
+    return all_terms
 
 def getAllSynonyms():
-	search_doc_id= "1kzWEh3v5sEJYARxYVikHdinfKIxbstYhP4HjFTh_dw4"
-	res = sheet.values().get(spreadsheetId = search_doc_id, range="Old Vocabulary (v4) with links!A2:H").execute()
-	terms = {}
-	for row in res['values']:
-		terms[row[0]] = {'getty': row[2].replace("\"", "", -1), 'wiki': row[1], 'otherDesc': row[3], 'otherImageUrl': row[4], 'otherUrl': row[5], 'synonyms': row[6], 'category': row[7]}
-	search_d = terms
-	syns = []
-	for term in search_d:
-		synString = search_d[term]['synonyms']
-		if synString != "":
-			if "," in synString:
-				synonyms = synString.split(",")
-				for syn in synonyms:
-					syns.append(syn)
-			else:
-				syns.append(synString)
-	return syns
+    search_doc_id = "1kzWEh3v5sEJYARxYVikHdinfKIxbstYhP4HjFTh_dw4"
+    res = sheet.values().get(spreadsheetId=search_doc_id, range="Old Vocabulary (v4) with links!A2:H").execute()
+    terms = {}
+    for row in res['values']:
+        terms[row[0]] = {'getty': row[2].replace("\"", "", -1), 'wiki': row[1], 'otherDesc': row[3], 'otherImageUrl': row[4], 'otherUrl': row[5], 'synonyms': row[6], 'category': row[7]}
+    search_d = terms
+    syns = []
+    for term in search_d:
+        synString = search_d[term]['synonyms']
+        if synString != "":
+            if "," in synString:
+                synonyms = synString.split(",")
+                for syn in synonyms:
+                    syns.append(syn)
+            else:
+                syns.append(synString)
+    return syns
 
 # === Forms ===
 
 # Log-in form. Pulls credentials from user.cfg
-@app.route('/init', methods=['POST']) #Form submitted from home page
+@app.route('/init', methods=['POST'])  # Form submitted from home page
 def init():
     session['carryoverPPP'] = ""
     session['carryoverPPPids'] = []
@@ -291,24 +283,23 @@ def init():
     session['property'] = ""
     session['room'] = ""
 
-
-    if (request.form.get('region')):
+    if request.form.get('region'):
         if request.form['region']:
             session['region'] = request.form['region']
 
-    if (request.form.get('insula')):
+    if request.form.get('insula'):
         if request.form['insula']:
             session['insula'] = request.form['insula']
         else:
             session['insula'] = ""
 
-    if (request.form.get('property')):
+    if request.form.get('property'):
         if request.form['property']:
             session['property'] = request.form['property']
         else:
             session['property'] = ""
 
-    if (request.form.get('room')):
+    if request.form.get('room'):
         if request.form['room']:
             session['room'] = request.form['room']
         else:
@@ -326,7 +317,7 @@ def init():
     # Set up dictionary for information about each ARC at location
     for l in range(len(locationlist)):
         places = locationlist[l].split("-")
-        if (places[0] == "r" + str(session['region'])) and ((places[1] == "i" +str(session['insula'])) or session['insula'] == "") and ((places[2] == "p" +str(session['property'])) or session['property'] == "") and (("-".join(places[3:]) == "space-" +str(session['room'])) or session['room'] == ""):
+        if (places[0] == "r" + str(session['region'])) and ((places[1] == "i" + str(session['insula'])) or session['insula'] == "") and ((places[2] == "p" + str(session['property'])) or session['property'] == "") and (("-".join(places[3:]) == "space-" + str(session['room'])) or session['room'] == ""):
             session['ARClist'][arclist[l]] = {"link": "None",
                                               "is_art": "Not defined",
                                               "is_plaster": "Not defined",
@@ -358,11 +349,11 @@ def index():
 def chooseARCs():
     if session.get('logged_in') and session["logged_in"]:
         pullPre()
-        return render_template("chooseARCs.html", arcs = session['ARClist'],
+        return render_template("chooseARCs.html", arcs=session['ARClist'],
                                region=session['region'], insula=session['insula'],
                                property=session['property'], room=session['room'], allTerms=getAllTerms())
     else:
-        error= "Sorry, this page is only accessible by logging in."
+        error = "Sorry, this page is only accessible by logging in."
         return render_template('index.html', arc="", error=error)
 
 # Clear old variables and set session ARC
@@ -386,9 +377,9 @@ def showPPP():
         rm = ""
         # User may not have input room identifier
         if session['room']:
-            rm = "' and `Room` = '" +session['room']
+            rm = "' and `Room` = '" + session['room']
         #Get related PPP entries for location
-        pppQuery = "SELECT uuid, description, id, location, material, Room FROM PPP WHERE `Region` = '" +session['region']+ "' and `Insula` = '" +session['insula']+ "' and `Doorway` = '" +session['property']+ rm+"';"
+        pppQuery = "SELECT uuid, description, id, location, material, Room FROM PPP WHERE `Region` = '" + session['region'] + "' and `Insula` = '" + session['insula'] + "' and `Doorway` = '" + session['property'] + rm+"';"
 
         pppCur.execute(pppQuery)
         data = pppCur.fetchall()
@@ -408,7 +399,7 @@ def showPPP():
             dlist.append(translation['translatedText'])
 
             arcCur = mysql.connection.cursor()
-            arcQuery = 'SELECT ARCs FROM PPP_desc WHERE uuid = "' +d[0] +'";'
+            arcQuery = 'SELECT ARCs FROM PPP_desc WHERE uuid = "' + d[0] + '";'
             arcCur.execute(arcQuery)
             newarcs = arcCur.fetchall()
             arcCur.close()
@@ -434,13 +425,12 @@ def showPPP():
 
         session['carryoverPPP'] = dataCopy
 
-
         return render_template('PPP.html',
-			catextppp=session['carryoverPPP'], dbdata = dataplustrans, indices = indices, arc=session['current'],
-			region=session['region'], insula=session['insula'], property=session['property'], room=session['room'], allTerms=getAllTerms())
+                               catextppp=session['carryoverPPP'], dbdata=dataplustrans, indices=indices, arc=session['current'],
+                               region=session['region'], insula=session['insula'], property=session['property'], room=session['room'], allTerms=getAllTerms())
 
     else:
-        error= "Sorry, this page is only accessible by logging in."
+        error = "Sorry, this page is only accessible by logging in."
         return render_template('index.html', arc="", error=error)
 
 # Show PPM and PinP images tagged with this ARC from the [Prequel Workspace](https://prequel.p-lod.umasscreate.net/)
@@ -465,8 +455,8 @@ def showAssociated():
                     thumbnail = box_client.file(all0[0][1]).get_thumbnail(extension='jpg', min_width=200)
                 except boxsdk.BoxAPIException as exception:
                     thumbnail = bytes(exception.message, 'utf-8')
-                with open(os.path.join("static/images",filename), "wb") as f:
-                    f.write(thumbnail)
+                with open(os.path.join("static/images", filename), "wb") as file:
+                    file.write(thumbnail)
             assocCur.close()
         totppm = []
         for p in d['ppmimgs']:
@@ -481,15 +471,15 @@ def showAssociated():
                     thumbnail = box_client.file(all0[0][1]).get_thumbnail(extension='jpg', min_width=200)
                 except boxsdk.BoxAPIException as exception:
                     thumbnail = bytes(exception.message, 'utf-8')
-                with open(os.path.join("static/images",filename), "wb") as f:
-                    f.write(thumbnail)
+                with open(os.path.join("static/images", filename), "wb") as file:
+                    file.write(thumbnail)
             assocCur.close()
         return render_template('associated.html', arc=session['current'],
-            region=session['region'], insula=session['insula'], property=session['property'], room=session['room'],
-            totpinp=totpinp, totppm=totppm, allTerms=getAllTerms())
+                               region=session['region'], insula=session['insula'], property=session['property'], room=session['room'],
+                               totpinp=totpinp, totppm=totppm, allTerms=getAllTerms())
 
     else:
-        error= "Sorry, this page is only accessible by logging in."
+        error = "Sorry, this page is only accessible by logging in."
         return render_template('index.html', arc="", error=error)
 
 # Assist user in copying data from workspace site to Google Sheet
@@ -504,12 +494,12 @@ def showDescs():
         # Copy template spreadsheet if one doesn't exist yet for this ARC
         if 'http' not in gdoc:
             template_spreadsheet_id = "13M3sk4RAOy2Jlq86ECdwR8m11MsOaUNF1unbP6yQF-g"
-            request_body = { "name": "Workspace_5_" + current, "parents":['1G_ZH-20qmxudaymDXMPe0wT4w_C_r00Q']}
-            response = drive_client.files().copy(fileId = template_spreadsheet_id, body=request_body, supportsAllDrives = True).execute()
+            request_body = {"name": "Workspace_5_" + current, "parents": ['1G_ZH-20qmxudaymDXMPe0wT4w_C_r00Q']}
+            response = drive_client.files().copy(fileId=template_spreadsheet_id, body=request_body, supportsAllDrives=True).execute()
             newID = response['id']
 
             #Update [Workflow Tracker](https://docs.google.com/spreadsheets/d/1F4nXX1QoyV1miaRUop2ctm8snDyov6GNu9aLt9t3a3M/edit) with new URL (this also marks it as "working")
-            newrange = "Workflow_Tracking!L"+ str(session['ARClist'][current]['trackerindex']+3)
+            newrange = "Workflow_Tracking!L" + str(session['ARClist'][current]['trackerindex']+3)
             new_request = {"values": [["https://docs.google.com/spreadsheets/d/" + newID]]}
             updatelink = sheet.values().update(spreadsheetId=tracking_ws, range=newrange, body=new_request, valueInputOption="USER_ENTERED").execute()
 
@@ -517,12 +507,12 @@ def showDescs():
 
             # Users allowed to access the description sheet
             auth_users = ['smastroianni@umass.edu', 'fdipietro@umass.edu', 'bmai@umass.edu', 'nicmjohnson@umass.edu', 'mcknapp@umass.edu',
-            'dbeason@umass.edu', 'lfield@umass.edu', 'tbernard@umass.edu', 'mhoffenberg@umass.edu', 'gsharaga@umass.edu', 'droller@umass.edu',
-            'shazizi@umass.edu', 'laurejt@umass.edu', 'abrenon@umass.edu', 'epoehler@classics.umass.edu', 'epoehler@gmail.com',
-            'palp-workspace@my-project-1537454316408.iam.gserviceaccount.com', 'plod@umass.edu', 'plodAD97@gmail.com']
+                          'dbeason@umass.edu', 'lfield@umass.edu', 'tbernard@umass.edu', 'mhoffenberg@umass.edu', 'gsharaga@umass.edu', 'droller@umass.edu',
+                          'shazizi@umass.edu', 'laurejt@umass.edu', 'abrenon@umass.edu', 'epoehler@classics.umass.edu', 'epoehler@gmail.com',
+                          'palp-workspace@my-project-1537454316408.iam.gserviceaccount.com', 'plod@umass.edu', 'plodAD97@gmail.com']
             for u in auth_users:
-                drive_client.permissions().create(body={"role":"writer", "type":"user", 'emailAddress': u, 'sendNotificationEmail': False}, fileId=newID).execute()
-            drive_client.permissions().create(body={"role":"owner", "type":"user", "emailAddress": "plodAD79@gmail.com"}, transferOwnership = True, fileId=newID).execute()
+                drive_client.permissions().create(body={"role": "writer", "type": "user", 'emailAddress': u, 'sendNotificationEmail': False}, fileId=newID).execute()
+            drive_client.permissions().create(body={"role": "owner", "type": "user", "emailAddress": "plodAD79@gmail.com"}, transferOwnership=True, fileId=newID).execute()
 
         gdoc = session['ARClist'][current]['link']
         d = session['ARClist'][current]
@@ -566,17 +556,17 @@ def showDescs():
         session['carryoverPPP'] = dataCopy
 
         return render_template('descs.html',
-            carryoverPPP=session['carryoverPPP'], carryoverPPM = carryoverppm, carryoverPinP = carryoverpinp,
-            region=session['region'], insula=session['insula'], property=session['property'], room=session['room'], gdoc=gdoc,
-            arc = current, allTerms=getAllTerms())
+                               carryoverPPP=session['carryoverPPP'], carryoverPPM=carryoverppm, carryoverPinP=carryoverpinp,
+                               region=session['region'], insula=session['insula'], property=session['property'], room=session['room'], gdoc=gdoc,
+                               arc=current, allTerms=getAllTerms())
     else:
-        error= "Sorry, this page is only accessible by logging in."
+        error = "Sorry, this page is only accessible by logging in."
         return render_template('index.html', arc="", error=error)
 
 # Help page
 @app.route('/help')
-def help():
-    return render_template('help.html')
+def helppage():
+    return render_template('help.html', allTerms=getAllTerms())
 
 # === Update forms ===
 
@@ -618,7 +608,7 @@ def updatePPP():
             pppQueryH = "UPDATE PPP SET `Room` = '" + vrep + "' WHERE `uuid` = '" + sep[0] + "';"
             pppCur.execute(pppQueryH)
         if sep[1] == "i":
-            pppQueryI = 'INSERT INTO `PPP_desc` (uuid, ARCs, date_added) VALUES ("' +sep[0]+'","'+vrep+'","'+date+'") ON DUPLICATE KEY UPDATE `ARCs` = "'+ vrep + '", `date_added` = "' + date +'";'
+            pppQueryI = 'INSERT INTO `PPP_desc` (uuid, ARCs, date_added) VALUES ("' + sep[0]+'","'+vrep+'","'+date+'") ON DUPLICATE KEY UPDATE `ARCs` = "' + vrep + '", `date_added` = "' + date + '";'
             pppCur.execute(pppQueryI)
     mysql.connection.commit()
     pppCur.close()
@@ -628,21 +618,21 @@ def updatePPP():
 # Save associated PPP text to help with description
 @app.route('/carryover-button')
 def carryover_button():
-    if (request.args.get('catextppp')):
+    if request.args.get('catextppp'):
 
         strargs = request.args['catextppp'].replace("[", "").replace("]", "")
         date = datetime.now().strftime("%Y-%m-%d")
         for i in strargs.split(","):
             addCur = mysql.connection.cursor()
             # If there's already an ARC marked related to this entry, replace it with new choice
-            addQuery = 'INSERT INTO `PPP_desc` (uuid, ARCs, date_added) VALUES (' +i+',"'+session["current"]+'","'+date+'") ON DUPLICATE KEY UPDATE `ARCs` = "'+ session["current"] + '", `date_added` = "' + date +'";'
+            addQuery = 'INSERT INTO `PPP_desc` (uuid, ARCs, date_added) VALUES (' + i + ',"'+session["current"]+'","' + date + '") ON DUPLICATE KEY UPDATE `ARCs` = "' + session["current"] + '", `date_added` = "' + date + '";'
             addCur.execute(addQuery)
             addCur.close()
 
         current = session['current']
         v = session['ARClist'][current]
         arcCur = mysql.connection.cursor()
-        arcQuery = 'SELECT uuid FROM PPP_desc WHERE ARCs LIKE "%' + current +'%";'
+        arcQuery = 'SELECT uuid FROM PPP_desc WHERE ARCs LIKE "%' + current + '%";'
         arcCur.execute(arcQuery)
         newarcs = arcCur.fetchall()
         v['ppps'] = []
@@ -660,7 +650,7 @@ def carryover_button():
 @app.route('/noart')
 def noart():
     chosenarc = session['current']
-    newrange = "Workflow_Tracking!M"+ str(session['ARClist'][chosenarc]['trackerindex']+3)
+    newrange = "Workflow_Tracking!M" + str(session['ARClist'][chosenarc]['trackerindex']+3)
     new_request = {"values": [["No from DW"]]}
     updatelink = sheet.values().update(spreadsheetId=tracking_ws, range=newrange, body=new_request, valueInputOption="RAW").execute()
 
@@ -670,7 +660,7 @@ def noart():
 @app.route('/unknownart')
 def unknownart():
     chosenarc = session['current']
-    newrange = "Workflow_Tracking!M"+ str(session['ARClist'][chosenarc]['trackerindex']+3)
+    newrange = "Workflow_Tracking!M" + str(session['ARClist'][chosenarc]['trackerindex']+3)
     new_request = {"values": [["Unknown from DW"]]}
     updatelink = sheet.values().update(spreadsheetId=tracking_ws, range=newrange, body=new_request, valueInputOption="RAW").execute()
 
@@ -682,19 +672,20 @@ def done():
     # Hero image comes either from PPM or PinP; db query is different depending on this
     db = request.form['pinporppm']
     imgid = request.form.get("hero")
+    dbid = ""
     if db == "PinP_preq":
         dbid = "archive_id"
     if db == "PPM_preq":
         dbid = "id"
     date = datetime.now().strftime("%Y-%m-%d")
     ppmCur = mysql.connection.cursor()
-    ppmQuery = 'INSERT INTO `'+db+'` ('+dbid+', hero_image, date_added) VALUES ('+ imgid +',"1",'+ date +') ON DUPLICATE KEY UPDATE `hero_image` = "1", `date_added` = "' + date +'";'
+    ppmQuery = 'INSERT INTO `'+db+'` ('+dbid+', hero_image, date_added) VALUES (' + imgid + ',"1",' + date + ') ON DUPLICATE KEY UPDATE `hero_image` = "1", `date_added` = "' + date + '";'
     ppmCur.execute(ppmQuery)
     mysql.connection.commit()
     ppmCur.close()
 
     chosenarc = session['current']
-    newrange = "Workflow_Tracking!S"+ str(session['ARClist'][chosenarc]['trackerindex']+3)
+    newrange = "Workflow_Tracking!S" + str(session['ARClist'][chosenarc]['trackerindex']+3)
     new_request = {"values": [[datetime.now().strftime("%m/%d/%Y")]]}
     updatelink = sheet.values().update(spreadsheetId=tracking_ws, range=newrange, body=new_request, valueInputOption="RAW").execute()
 
@@ -724,38 +715,38 @@ def showPPPSingle():
 
         error = ""
         pppCur = mysql.connection.cursor()
-        if (request.args.get('uuid')):
+        if request.args.get('uuid'):
             pppQuery = "SELECT uuid, id, location, material, description, condition_ppp, style, bibliography, photo_negative FROM PPP WHERE `uuid` = '"+str(request.args['uuid'])+"';"
             try:
                 pppCur.execute(pppQuery)
                 data = pppCur.fetchall()
             except Exception as exception:
                 data = 'error'
-                error= "You searched for Unique ID "+request.args['uuid']+". That doesn't exist - please add an entry or try again."
+                error = "You searched for Unique ID "+request.args['uuid']+". That doesn't exist - please add an entry or try again."
             if len(data) < 1:
                 data = 'error'
-                error= "You searched for Unique ID "+request.args['uuid']+". That doesn't exist - please add an entry or try again."
+                error = "You searched for Unique ID "+request.args['uuid']+". That doesn't exist - please add an entry or try again."
 
-        elif (request.args.get('id')):
+        elif request.args.get('id'):
             pppQuery = "SELECT uuid, id, location, material, description, condition_ppp, style, bibliography, photo_negative FROM PPP WHERE `id` = '"+str(request.args['id'])+"';"
             try:
                 pppCur.execute(pppQuery)
                 data = pppCur.fetchall()
             except Exception:
                 data = 'error'
-                error= "You searched for PPPID "+request.args['id']+". That doesn't exist - please add an entry or try again."
+                error = "You searched for PPPID "+request.args['id']+". That doesn't exist - please add an entry or try again."
             if len(data) < 1:
                 data = 'error'
-                error= "You searched for PPPID "+request.args['id']+". That doesn't exist - please add an entry or try again."
+                error = "You searched for PPPID "+request.args['id']+". That doesn't exist - please add an entry or try again."
         else:
             data = 'error'
             error = "Please put a query in the URL using the format <a href='https://workspace.p-lod.umasscreate.net/PPP-single?id='>https://workspace.p-lod.umasscreate.net/PPP-single?id=</a> or <a href='https://workspace.p-lod.umasscreate.net/PPP-single?uuid='>https://workspace.p-lod.umasscreate.net/PPP-single?uuid=</a>."
         pppCur.close()
 
-        return render_template('PPP-single.html', dbdata = data, error=error)
+        return render_template('PPP-single.html', dbdata=data, error=error)
 
     else:
-        error= "This page is only accessible by logging in."
+        error = "This page is only accessible by logging in."
         return render_template('PPP-single.html', dbdata="", error=error)
 
 # Add or edit PPP entry in database
@@ -826,19 +817,19 @@ def updatePPPEdit():
 @app.route("/PPM-single-search", methods=['POST', 'GET'])
 def PPMSingleSearch():
     if session.get('PPPlogged_in') and session["PPPlogged_in"]:
-        if (request.form.get('region')):
+        if request.form.get('region'):
             region = request.form['region']
         else:
             region = ""
-        if (request.form.get('insula')):
+        if request.form.get('insula'):
             insula = request.form['insula']
         else:
             insula = ""
-        if (request.form.get('property')):
+        if request.form.get('property'):
             prop = request.form['property']
         else:
             prop = ""
-        if (request.form.get('room')):
+        if request.form.get('room'):
             room = request.form['room']
         else:
             room = ""
@@ -852,19 +843,19 @@ def PPMSingleSearch():
                 loc.append("%")
             if insula != "":
                 if insula[0] == "0":
-                    insula = insula.replace("0","")
+                    insula = insula.replace("0", "")
                 loc.append(insula)
             else:
                 loc.append("%")
             if prop != "":
                 if prop[0] == "0":
-                    prop = prop.replace("0","")
+                    prop = prop.replace("0", "")
                 loc.append(prop)
             else:
                 loc.append("%")
             if room != "":
                 if room[0] == "0":
-                    room = room.replace("0","")
+                    room = room.replace("0", "")
                 loc.append(room)
             else:
                 loc.append("%")
@@ -882,12 +873,12 @@ def PPMSingleSearch():
         else:
             newdata = "none"
 
-        return render_template('PPM-single-search.html', dbdata = newdata, region= region,
-                                insula = insula, prop = prop, room = room)
+        return render_template('PPM-single-search.html', dbdata=newdata, region=region,
+                               insula=insula, prop=prop, room=room)
 
     else:
-        error= "This page is only accessible by logging in."
-        return render_template('PPM-single-search.html')
+        error = "This page is only accessible by logging in."
+        return render_template('PPM-single-search.html', error=error)
 
 # Edit one PPM at a time. URL parameter can be PPM ID or UUID
 @app.route("/PPM-single")
@@ -915,10 +906,10 @@ def showPPMSingle():
                 data = ppmCur.fetchall()
             except Exception:
                 data = 'error'
-                error= "You searched for PPM location "+request.args['id']+". That doesn't exist - please add an entry or try again."
+                error = "You searched for PPM location "+request.args['id']+". That doesn't exist - please add an entry or try again."
             if len(data) < 1:
                 data = 'error'
-                error= "You searched for PPM location "+request.args['id']+". That doesn't exist - please add an entry or try again."
+                error = "You searched for PPM location "+request.args['id']+". That doesn't exist - please add an entry or try again."
         else:
             data = 'error'
             error = "Please put a query in the URL using the format <a href='https://workspace.p-lod.umasscreate.net/PPM-single?uuid='>https://workspace.p-lod.umasscreate.net/PPM-single?uuid=</a> or <a href='https://workspace.p-lod.umasscreate.net/PPM-single?location='>https://workspace.p-lod.umasscreate.net/PPM-single?location=</a>."
@@ -946,10 +937,10 @@ def showPPMSingle():
                 newdata.append(d)
             data = newdata
 
-        return render_template('PPM-single.html', dbdata = data, error=error)
+        return render_template('PPM-single.html', dbdata=data, error=error)
 
     else:
-        error= "This page is only accessible by logging in."
+        error = "This page is only accessible by logging in."
         return render_template('PPM-single.html', dbdata="", error=error)
 
 # Add or edit PPM entry in database
@@ -1015,61 +1006,61 @@ def updatePPMEdit():
         nextid = str(nextidint)
         return redirect('/PPM-single?uuid='+nextid)
 
-@app.route('/edit_terms', methods=['GET','POST'])
+@app.route('/edit_terms', methods=['GET', 'POST'])
 def edit_terms():
-	return render_template('edit_terms.html', allTerms=getAllTerms(), dbdata="", error="None")
+    return render_template('edit_terms.html', allTerms=getAllTerms(), dbdata="", error="None")
 
 @app.route('/categories', methods=['GET'])
 def categories():
-	search_data = getSearchTerms()
-	cats = getAllCategories()
-	categories = []
-	for cat in cats:
-		for term in search_data:
-			if search_data[term]['category'] == cat and search_data[term]['wiki'] != "-":
-				try:
-					entity = client.get(search_data[term]['wiki'], load=True)
-					image_prop = client.get('P18')
-					image = entity[image_prop]
-					if image.image_url != "":
-						categories.append({"key": cat, "img_url": image.image_url})
-						break
-				except Exception as err:
-					print(err)
-	return render_template('categories.html', categories=categories, allTerms=getAllTerms(), dbdata="", error="None")
+    search_data = getSearchTerms()
+    cats = getAllCategories()
+    categories = []
+    for cat in cats:
+        for term in search_data:
+            if search_data[term]['category'] == cat and search_data[term]['wiki'] != "-":
+                try:
+                    entity = client.get(search_data[term]['wiki'], load=True)
+                    image_prop = client.get('P18')
+                    image = entity[image_prop]
+                    if image.image_url != "":
+                        categories.append({"key": cat, "img_url": image.image_url})
+                        break
+                except Exception as err:
+                    print(err)
+    return render_template('categories.html', categories=categories, allTerms=getAllTerms(), dbdata="", error="None")
 
 
 def getAllCategories():
-	search_doc_id= "1kzWEh3v5sEJYARxYVikHdinfKIxbstYhP4HjFTh_dw4"
-	res = sheet.values().get(spreadsheetId = search_doc_id, range="Old Vocabulary (v4) with links!A2:H").execute()
-	terms = {}
-	for row in res['values']:
-		terms[row[0]] = {'getty': row[2].replace("\"", "", -1), 'wiki': row[1], 'otherDesc': row[3], 'otherImageUrl': row[4], 'otherUrl': row[5], 'synonyms': row[6], 'category': row[7]}
-	search_d = terms
-	cats = []
-	for term in search_d:
-		cat = search_d[term]['category']
-		if cat != "" and cat not in cats:
-			cats.append(cat)
-	return cats
+    search_doc_id = "1kzWEh3v5sEJYARxYVikHdinfKIxbstYhP4HjFTh_dw4"
+    res = sheet.values().get(spreadsheetId=search_doc_id, range="Old Vocabulary (v4) with links!A2:H").execute()
+    terms = {}
+    for row in res['values']:
+        terms[row[0]] = {'getty': row[2].replace("\"", "", -1), 'wiki': row[1], 'otherDesc': row[3], 'otherImageUrl': row[4], 'otherUrl': row[5], 'synonyms': row[6], 'category': row[7]}
+    search_d = terms
+    cats = []
+    for term in search_d:
+        cat = search_d[term]['category']
+        if cat != "" and cat not in cats:
+            cats.append(cat)
+    return cats
 
-@app.route('/img_search', methods=['GET','POST'])
+@app.route('/img_search', methods=['GET', 'POST'])
 def img_search():
-	category = request.args.get("category")
-	search_data = getSearchTerms()
-	imgUrls = []
-	for key in search_data:
-		if search_data[key]["category"] == category:
-			wikiID = search_data[key]["wiki"]
-			if wikiID != "-":
-				try:
-					entity = client.get(wikiID, load=True)
-					image_prop = client.get('P18')
-					image = entity[image_prop]
-					imgUrls.append({"key": key, "img_url": image.image_url})
-				except Exception as err:
-					imgUrls.append({"key": key, "img_url":  "-" if search_data[key]["otherImageUrl"] == "" else search_data[key]["otherImageUrl"]})
-	return render_template('image_search.html', img_urls=imgUrls, allTerms=getAllTerms(), dbdata="", error="None")
+    category = request.args.get("category")
+    search_data = getSearchTerms()
+    imgUrls = []
+    for key in search_data:
+        if search_data[key]["category"] == category:
+            wikiID = search_data[key]["wiki"]
+            if wikiID != "-":
+                try:
+                    entity = client.get(wikiID, load=True)
+                    image_prop = client.get('P18')
+                    image = entity[image_prop]
+                    imgUrls.append({"key": key, "img_url": image.image_url})
+                except Exception as err:
+                    imgUrls.append({"key": key, "img_url":  "-" if search_data[key]["otherImageUrl"] == "" else search_data[key]["otherImageUrl"]})
+    return render_template('image_search.html', img_urls=imgUrls, allTerms=getAllTerms(), dbdata="", error="None")
 
 
 # Run Flask app

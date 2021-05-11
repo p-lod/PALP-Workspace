@@ -1,5 +1,5 @@
 attrs==19.3.0
-boxsdk==2.7.1
+boxsdk~=2.12.0
 cachetools==4.1.0
 certifi==2020.4.5.1
 cffi==1.14.0
@@ -28,7 +28,7 @@ pyasn1-modules==0.2.8
 pycparser==2.20
 PyJWT==1.7.1
 pytz==2019.3
-requests==2.23.0
+requests~=2.25.1
 requests-toolbelt==0.9.1
 rsa==4.0
 six==1.14.0
@@ -36,3 +36,5 @@ uritemplate==3.0.1
 urllib3==1.25.8
 Werkzeug==1.0.1
 wrapt==1.12.1
+langdetect~=1.0.9
+Wikidata~=0.7.0
