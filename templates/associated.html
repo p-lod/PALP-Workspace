@@ -84,11 +84,10 @@
                 <tbody>
                     {% for row in totpinp %}
                     <tr>
-                        <td> {{row[0][0]}} </td>
-                        <td> <a href="https://app.box.com/file/{{row[0][1]}}" target="_blank"><img
-                                    class="img-fluid img-thumbnail" src="static/images/{{row[0][1]}}.jpg" alt=""></a>
+                        <td> {{row[0]}} </td>
+                        <td><a href="https://umassamherst.lunaimaging.com/luna/servlet/detail/{{row[3]}}"><img class="img-fluid img-thumbnail" src="{{row[2]}}" alt=""></a>
                         </td>
-                        <td>{{row[0][2]}}</td>
+                        <td>{{row[1]}}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -112,11 +111,12 @@
                 <tbody>
                     {% for row in totppm %}
                     <tr>
-                        <td> {{row[0][0]}} </td>
-                        <td> <a href="https://app.box.com/file/{{row[0][1]}}" target="_blank"><img
-                                    class="img-fluid img-thumbnail" src="static/images/{{row[0][1]}}.jpg" alt=""></a>
+                        <td> {{row[0]}} </td>
+                        <td> <a href="{{row[3]}}" target="_blank"><img
+                                    class="img-fluid img-thumbnail" src="{{row[4]}}" alt=""></a>
                         </td>
-                        <td>{{row[0][2]}}</td>
+                        <!--<td><a href="https://umassamherst.lunaimaging.com/luna/servlet/detail/{{row[4]}}"><img class="img-fluid img-thumbnail" src="{{row[3]}}" alt=""></a>-->
+                        <td>{{row[2]}}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

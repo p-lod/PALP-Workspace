@@ -439,32 +439,39 @@ def showAssociated():
 
     if session.get('logged_in') and session["logged_in"]:
         pullPre()
+        base_url = "http://umassamherst.lunaimaging.com/luna/servlet/as/search?"
         current = session['current']
         d = session['ARClist'][current]
         totpinp = []
         for p in d['pinpimgs']:
+            thispinp = []
             assocCur = mysql.connection.cursor()
-            assocQuery = "SELECT DISTINCT `archive_id`, `id_box_file`, `img_alt` FROM `PinP` WHERE `archive_id` = '"+str(p)+"' ORDER BY `img_url` "
+            assocQuery = "SELECT DISTINCT `archive_id`, `img_alt` FROM `PinP` WHERE `archive_id` = '"+str(p)+"' ORDER BY `img_url` "
             assocCur.execute(assocQuery)
             all0 = assocCur.fetchall()
-            totpinp.append(all0)
-            filename = str(all0[0][1]) + ".jpg"
-            if not os.path.exists("static/images/"+filename):
-                # Download thumbnail from Box into temporary images folder (emptied once a week)
-                try:
-                    thumbnail = box_client.file(all0[0][1]).get_thumbnail(extension='jpg', min_width=200)
-                except boxsdk.BoxAPIException as exception:
-                    thumbnail = bytes(exception.message, 'utf-8')
-                with open(os.path.join("static/images", filename), "wb") as file:
-                    file.write(thumbnail)
+            for p in all0[0]:
+                thispinp.append(p)
+            params = ["q=filename=image"+str(all0[0][0])+ ".jpg", "lc=umass~14~14"]
+            request = requests.get(base_url+"&".join(params))
+            result = request.json()
+            if len(result['results']) > 0:
+                thispinp.append(result['results'][0]['urlSize1'])
+                thispinp.append(result['results'][0]['id'])
+            else:
+                thispinp.append("")
+                thispinp.append("")
             assocCur.close()
+            totpinp.append(thispinp)
         totppm = []
         for p in d['ppmimgs']:
+            thisppm = []
             assocCur = mysql.connection.cursor()
             assocQuery = "SELECT DISTINCT `id`, `image_id`, `translated_text` FROM `PPM` WHERE `id` = '"+str(p)+"'"
             assocCur.execute(assocQuery)
             all0 = assocCur.fetchall()
-            totppm.append(all0)
+            for p in all0[0]:
+                thisppm.append(p)
+            ### START BOX - to be replaced
             filename = str(all0[0][1]) + ".jpg"
             if not os.path.exists("static/images/"+filename):
                 try:
@@ -473,7 +480,20 @@ def showAssociated():
                     thumbnail = bytes(exception.message, 'utf-8')
                 with open(os.path.join("static/images", filename), "wb") as file:
                     file.write(thumbnail)
+            thisppm.append("https://app.box.com/file/"+str(all0[0][1]))
+            thisppm.append("static/images/"+filename)
+            ### END BOX
+            # params = ["q=filename=image"+str(all0[0][0])+ ".jpg", "lc=umass~14~14"]
+            # request = requests.get(base_url+"&".join(params))
+            # result = request.json()
+            # if len(result['results']) > 0:
+            #     thisppm.append(result['results'][0]['urlSize1'])
+            #     thisppm.append(result['results'][0]['id'])
+            # else:
+            #     thisppm.append("")
+            #     thisppm.append("")
             assocCur.close()
+            totppm.append(thisppm)
         return render_template('associated.html', arc=session['current'],
                                region=session['region'], insula=session['insula'], property=session['property'], room=session['room'],
                                totpinp=totpinp, totppm=totppm, allTerms=getAllTerms())
