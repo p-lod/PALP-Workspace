@@ -484,21 +484,29 @@ def showAssociated():
         for p in d['ppmimgs']:
             thisppm = []
             assocCur = mysql.connection.cursor()
-            assocQuery = "SELECT DISTINCT `id`, `image_id`, `translated_text` FROM `PPM` WHERE `id` = '"+str(p)+"'"
+            assocQuery = "SELECT DISTINCT `id`, `translated_text` FROM `PPM` WHERE `id` = '"+str(p)+"'"
             assocCur.execute(assocQuery)
             all0 = assocCur.fetchall()
             for p in all0[0]:
                 thisppm.append(p)
             ### START BOX - to be replaced
-            filename = str(all0[0][1]) + ".jpg"
+            itemid = "0"
+            searchid = "\"" + all0[0][0] + ".jpg\""
+            box_id = box_client.search().query(query=searchid, file_extensions=['jpg'], ancestor_folder_ids="138198238999", fields=["id", "name"], content_types=["name"])
+            for item in box_id:
+                if item.name == all0[0][0] + ".jpg":
+                    itemid = item.id
+                    break
+            filename = str(itemid) + ".jpg"
             if not os.path.exists("static/images/"+filename):
                 try:
-                    thumbnail = box_client.file(all0[0][1]).get_thumbnail(extension='jpg', min_width=200)
+                    thumbnail = box_client.file(itemid).get_thumbnail(extension='jpg', min_width=200)
                 except boxsdk.BoxAPIException as exception:
                     thumbnail = bytes(exception.message, 'utf-8')
                 with open(os.path.join("static/images", filename), "wb") as file:
                     file.write(thumbnail)
-            thisppm.append("https://app.box.com/file/"+str(all0[0][1]))
+            assocCur.close()
+            thisppm.append("https://app.box.com/file/"+str(itemid))
             thisppm.append("static/images/"+filename)
             ### END BOX
             # params = ["q=filename=image"+str(all0[0][0])+ ".jpg", "lc=umass~14~14"]
@@ -926,7 +934,7 @@ def showPPMSingle():
         error = ""
         ppmCur = mysql.connection.cursor()
         if (request.args.get('uuid')):
-            ppmQuery = "SELECT id, location, description, translated_text, image_path, region, insula, doorway, doorways, room, other, volume, page, caption FROM PPM WHERE `id` = '"+str(request.args['uuid'])+"';"
+            ppmQuery = "SELECT id, photo_archive_id, description, translated_text, image_path, region, insula, doorway, doorways, room, other_location, volume, page, caption FROM PPM WHERE `id` = '"+request.args['uuid']+"';"
             try:
                 ppmCur.execute(ppmQuery)
                 data = ppmCur.fetchall()
@@ -938,16 +946,16 @@ def showPPMSingle():
                 error= "You searched for Unique ID "+request.args['uuid']+". That doesn't exist - please add an entry or try again."
 
         elif (request.args.get('location')):
-            ppmQuery = "SELECT id, location, description, translated_text, image_path, region, insula, doorway, doorways, room, other, volume, page, caption FROM PPM WHERE `location` = '"+str(request.args['location'])+"';"
+            ppmQuery = "SELECT id, photo_archive_id, description, translated_text, image_path, region, insula, doorway, doorways, room, other_location, volume, page, caption FROM PPM WHERE `location` = '"+str(request.args['location'])+"';"
             try:
                 ppmCur.execute(ppmQuery)
                 data = ppmCur.fetchall()
             except Exception:
                 data = 'error'
-                error = "You searched for PPM location "+request.args['id']+". That doesn't exist - please add an entry or try again."
+                error = "You searched for PPM photo archive id "+request.args['id']+". That doesn't exist - please add an entry or try again."
             if len(data) < 1:
                 data = 'error'
-                error = "You searched for PPM location "+request.args['id']+". That doesn't exist - please add an entry or try again."
+                error = "You searched for PPM photo archive id "+request.args['id']+". That doesn't exist - please add an entry or try again."
         else:
             data = 'error'
             error = "Please put a query in the URL using the format <a href='https://workspace.p-lod.umasscreate.net/PPM-single?uuid='>https://workspace.p-lod.umasscreate.net/PPM-single?uuid=</a> or <a href='https://workspace.p-lod.umasscreate.net/PPM-single?location='>https://workspace.p-lod.umasscreate.net/PPM-single?location=</a>."
@@ -959,19 +967,13 @@ def showPPMSingle():
             for d in data:
                 d = list(d)
                 base_url = "http://umassamherst.lunaimaging.com/luna/servlet/as/search?"
-                #params = ["q=filename="+str(d[4]), "lc=umass~14~14"]
-                params = ["q=filename=image58934.jpg", "lc=umass~14~14"]
+                params = ["q=filename="+str(d[0]), "lc=umass~14~14"]
                 requesta = requests.get(base_url+"&".join(params))
                 result = requesta.json()
                 if len(result['results']) > 0:
                     d.append(result['results'][0]['urlSize2'])
                 else:
                     d.append("")
-                imgloc = d[4].split("_")
-                if len(imgloc) < 4:
-                    d.append("0")
-                for i in imgloc:
-                    d.append(i)
                 newdata.append(d)
             data = newdata
 
@@ -997,7 +999,7 @@ def updatePPMEdit():
             ppmQueryA = "UPDATE PPM SET `translated_text` = '" + vrep + "' WHERE `id` = '" + sep + "';"
             ppmCur.execute(ppmQueryA)
         if k == "location":
-            ppmQueryB = "UPDATE PPM SET `location` = '" + vrep + "' WHERE `id` = '" + sep + "';"
+            ppmQueryB = "UPDATE PPM SET `photo_archive_id` = '" + vrep + "' WHERE `id` = '" + sep + "';"
             ppmCur.execute(ppmQueryB)
         if k == "other":
             ppmQueryC = "UPDATE PPM SET `material` = '" + vrep + "' WHERE `id` = '" + sep + "';"
@@ -1040,8 +1042,10 @@ def updatePPMEdit():
         return redirect('/PPM-single')
     # Otherwise, "next" button leads user to next uuid numerically
     else:
-        nextidint = int(sep) + 1
-        nextid = str(nextidint)
+
+        num = sep.split("_")[1]
+        nextidint = int(num) + 1
+        nextid = sep.split("_")[0] + "_" + str(nextidint)
         return redirect('/PPM-single?uuid='+nextid)
 
 @app.route('/edit_terms', methods=['GET', 'POST'])
