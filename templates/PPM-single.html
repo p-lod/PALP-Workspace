@@ -77,10 +77,10 @@
             </tbody>
     </table>
     <input type="hidden" name="uuid" id ="uuid" value="{{row[0]}}">
-    {% set number = row[0] | int %}
+    {% set number = row[0][5:] | int %}
     <input type="submit" class="btn btn-success" value="Save + Next"><br/><br/>
-    <a href="/PPM-single?uuid={{number-1}}">previous</a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    <a href="/PPM-single?uuid={{number+1}}">next</a>
+    <a href="/PPM-single?uuid={{row[0][:5]}}{{number-1}}">previous</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="/PPM-single?uuid={{row[0][:5]}}{{number+1}}">next</a>
 </form>
 </div>
 <div class="col">

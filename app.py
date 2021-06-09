@@ -469,7 +469,7 @@ def showAssociated():
             all0 = assocCur.fetchall()
             for p in all0[0]:
                 thispinp.append(p)
-            params = ["q=filename=image"+str(all0[0][0])+ ".jpg", "lc=umass~14~14"]
+            params = ["q=filename=image"+str(all0[0][0])+ ".jpg", "lc=umass~14~14,umass~15~15"]
             request = requests.get(base_url+"&".join(params))
             result = request.json()
             if len(result['results']) > 0:
@@ -489,35 +489,15 @@ def showAssociated():
             all0 = assocCur.fetchall()
             for p in all0[0]:
                 thisppm.append(p)
-            ### START BOX - to be replaced
-            itemid = "0"
-            searchid = "\"" + all0[0][0] + ".jpg\""
-            box_id = box_client.search().query(query=searchid, file_extensions=['jpg'], ancestor_folder_ids="138198238999", fields=["id", "name"], content_types=["name"])
-            for item in box_id:
-                if item.name == all0[0][0] + ".jpg":
-                    itemid = item.id
-                    break
-            filename = str(itemid) + ".jpg"
-            if not os.path.exists("static/images/"+filename):
-                try:
-                    thumbnail = box_client.file(itemid).get_thumbnail(extension='jpg', min_width=200)
-                except boxsdk.BoxAPIException as exception:
-                    thumbnail = bytes(exception.message, 'utf-8')
-                with open(os.path.join("static/images", filename), "wb") as file:
-                    file.write(thumbnail)
-            assocCur.close()
-            thisppm.append("https://app.box.com/file/"+str(itemid))
-            thisppm.append("static/images/"+filename)
-            ### END BOX
-            # params = ["q=filename=image"+str(all0[0][0])+ ".jpg", "lc=umass~14~14"]
-            # request = requests.get(base_url+"&".join(params))
-            # result = request.json()
-            # if len(result['results']) > 0:
-            #     thisppm.append(result['results'][0]['urlSize1'])
-            #     thisppm.append(result['results'][0]['id'])
-            # else:
-            #     thisppm.append("")
-            #     thisppm.append("")
+            params = ["q=filename="+str(all0[0][0])+ ".jpg", "lc=umass~16~16"]
+            request = requests.get(base_url+"&".join(params))
+            result = request.json()
+            if len(result['results']) > 0:
+                thisppm.append(result['results'][0]['urlSize1'])
+                thisppm.append(result['results'][0]['id'])
+            else:
+                thisppm.append("")
+                thisppm.append("")
             assocCur.close()
             totppm.append(thisppm)
         return render_template('associated.html', arc=session['current'],
@@ -967,7 +947,7 @@ def showPPMSingle():
             for d in data:
                 d = list(d)
                 base_url = "http://umassamherst.lunaimaging.com/luna/servlet/as/search?"
-                params = ["q=filename="+str(d[0]), "lc=umass~14~14"]
+                params = ["q=filename="+str(d[0]) + ".jpg", "lc=umass~16~16"]
                 requesta = requests.get(base_url+"&".join(params))
                 result = requesta.json()
                 if len(result['results']) > 0:
